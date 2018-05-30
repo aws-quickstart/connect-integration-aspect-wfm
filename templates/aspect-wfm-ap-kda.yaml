@@ -368,7 +368,7 @@ Resources:
             Ref: OutputKinesisFirehose
           kda_application_name:
             Ref: KinesisDataAnalyticsApplication
-      Handler: index.lambda_handler
+      Handler: update.lambda_handler
       Runtime: python3.6
       Role:
         Fn::GetAtt: LambdaRole.Arn
