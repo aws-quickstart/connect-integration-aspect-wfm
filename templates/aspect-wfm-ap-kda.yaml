@@ -1,7 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Aspect WFM Agent Productivity Report Generator integration (Workload
-  Template) for Amazon Connect Quick Start (qs-)
+Description: Aspect WFM Agent Productivity Report Generator integration for Amazon Connect (qs-1ohjcidec)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
