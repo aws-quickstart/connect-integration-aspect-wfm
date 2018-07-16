@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Aspect WFM Agent Productivity Report Generator integration (Workload
-  Template) for Amazon Connect Quick Start (qs-)
+Description: Aspect WFM Agent Productivity Report Generator integration for Amazon
+  Connect (qs-1ohjcidec)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -50,12 +50,13 @@ Parameters:
       this value, in the Firehose Report Root Path data source parameter.
   ConnectS3Bucket:
     Type: String
-    Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect instance.
+    Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect
+      instance.
   ConnectS3Prefix:
     Type: String
     Default: connect/directory/Reports/Aspect/
-    Description: Enter the prefix under which the exported reports read by WFM Adapter will be
-      exported, in the Exported reports bucket of your Amazon Connect instance.
+    Description: Enter the prefix under which the exported reports read by WFM Adapter
+      will be exported, in the Exported reports bucket of your Amazon Connect instance.
 Rules:
   ParameterDefaults:
     Assertions:
@@ -64,7 +65,8 @@ Rules:
         - Fn::Equals:
           - Ref: ConnectS3Prefix
           - connect/directory/Reports/Aspect/
-      AssertDescription: Replace directory with the directory name of your Amazon Connect instance.
+      AssertDescription: Replace directory with the directory name of your Amazon
+        Connect instance.
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -427,7 +429,7 @@ Resources:
   WFMAdapterUser:
     Type: AWS::IAM::User
     Properties:
-      Path: "/"
+      Path: /
       UserName:
         Fn::Sub: WFMAdapter-${KdaApplicationName}
       Policies:
