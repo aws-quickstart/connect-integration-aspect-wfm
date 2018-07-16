@@ -1,27 +1,14 @@
 global:
   marketplace-ami: false
-  owner: quickstart-eng@amazon.com
+  owner: support@aspect.com
   qsname: connect-integration-aspect-wfm
   regions:
-    - ap-northeast-1
-    - ap-northeast-2
-    - ap-south-1
-    - ap-southeast-1
-    - ap-southeast-2
-    - ca-central-1
-    - eu-central-1
-    - eu-west-1
-    - sa-east-1
     - us-east-1
-    - us-east-2
-    - us-west-1
     - us-west-2
+    - eu-central-1
+    - ap-southeast-2
   reporting: true
- 
 tests:
-  connect-integration-aspect-wfmt1:
-    parameter_input: connect-integration-aspect-wfm-example-params1.json
-    template_file: connect-integration-aspect-wfm-example1.template
-  connect-integration-aspect-wfmt2:
-    parameter_input: connect-integration-aspect-wfm-example-params2.json
-    template_file: connect-integration-aspect-wfm-example2.template
+  default:
+   parameter_input: defaults.json
+   template_file: aspect-wfm-ap-kda.yaml
