@@ -80,7 +80,7 @@ Resources:
     Properties:
       ApplicationName:
         Fn::Sub: ${KdaApplicationName}
-      ApplicationDescription: Aspect WFM Agent Productivity Report Generator
+      ApplicationDescription: "Aspect WFM Agent Productivity Report Generator"
       ApplicationCode: "CREATE OR REPLACE STREAM \"DESTINATION_SQL_STREAM\"\n  (\"\
         AWSAccountId\" char(12),\n  \"Username\" varchar(256),\n  \"AHGLevel1\" varchar(256),\n\
         \  \"AHGLevel2\" varchar(256),\n  \"AHGLevel3\" varchar(256),\n  \"AHGLevel4\"\
@@ -104,55 +104,53 @@ Resources:
         StateType\", '1')\n      FROM TEMP_SQL_STREAM\n      WINDOW W1 AS (PARTITION\
         \ BY \"AWSAccountId\" RANGE INTERVAL '15' MINUTE PRECEDING);    \n"
       Inputs:
-      - NamePrefix: SOURCE_SQL_STREAM
+      - NamePrefix: "SOURCE_SQL_STREAM"
         InputSchema:
           RecordColumns:
-          - Name: AWSAccountId
-            SqlType: CHAR(12)
-            Mapping: $.AWSAccountId
-          - Name: casStateName
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.AgentStatus.Name
-          - Name: casAhgL1Name
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level1.Name
-          - Name: casAhgL2Name
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level2.Name
-          - Name: casAhgL3Name
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level3.Name
-          - Name: casAhgL4Name
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level4.Name
-          - Name: casAhgL5Name
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level5.Name
-          - Name: casUsername
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.Configuration.Username
-          - Name: casContactState
-            SqlType: VARCHAR(256)
-            Mapping: $.CurrentAgentSnapshot.Contacts[0:].State
-          - Name: EventTimestamp
-            SqlType: TIMESTAMP
-            Mapping: $.EventTimestamp
-          - Name: EventType
-            SqlType: VARCHAR(64)
-            Mapping: $.EventType
-          - Name: Version
-            SqlType: VARCHAR(10)
-            Mapping: $.Version
+          - Name: "AWSAccountId"
+            SqlType: "CHAR(12)"
+            Mapping: "$.AWSAccountId"
+          - Name: "casStateName"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.AgentStatus.Name"
+          - Name: "casAhgL1Name"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level1.Name"
+          - Name: "casAhgL2Name"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level2.Name"
+          - Name: "casAhgL3Name"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level3.Name"
+          - Name: "casAhgL4Name"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level4.Name"
+          - Name: "casAhgL5Name"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level5.Name"
+          - Name: "casUsername"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Configuration.Username"
+          - Name: "casContactState"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Contacts[0:].State"
+          - Name: "EventTimestamp"
+            SqlType: "TIMESTAMP"
+            Mapping: "$.EventTimestamp"
+          - Name: "EventType"
+            SqlType: "VARCHAR(64)"
+            Mapping: "$.EventType"
+          - Name: "Version"
+            SqlType: "VARCHAR(10)"
+            Mapping: "$.Version"
           RecordFormat:
-            RecordFormatType: JSON
+            RecordFormatType: "JSON"
             MappingParameters:
               JSONMappingParameters:
-                RecordRowPath: $
+                RecordRowPath: "$"
         KinesisStreamsInput:
-          ResourceARN:
-            Fn::GetAtt: AgentEventStreamArn.Arn
-          RoleARN:
-            Fn::GetAtt: KinesisAnalyticsAppRole.Arn
+          ResourceARN: !GetAtt AgentEventStreamArn.Arn
+          RoleARN: !GetAtt KinesisAnalyticsAppRole.Arn
   KinesisAnalyticsS3Role:
     Type: AWS::IAM::Role
     Properties:
@@ -284,14 +282,14 @@ Resources:
       ApplicationName:
         Ref: KinesisDataAnalyticsApplication
       Output:
-        Name: DESTINATION_SQL_STREAM
+        Name: 'DESTINATION_SQL_STREAM'
         DestinationSchema:
-          RecordFormatType: CSV
+          RecordFormatType: 'CSV'
         KinesisFirehoseOutput:
           ResourceARN:
-            Fn::GetAtt: OutputKinesisFirehose.Arn
+            !GetAtt OutputKinesisFirehose.Arn
           RoleARN:
-            Fn::GetAtt: KinesisAnalyticsAppRole.Arn
+            !GetAtt KinesisAnalyticsAppRole.Arn
   OutputKinesisFirehose:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
@@ -313,24 +311,21 @@ Resources:
     Type: AWS::KinesisAnalytics::ApplicationReferenceDataSource
     DependsOn: KinesisDataAnalyticsApplicationOutputs
     Properties:
-      ApplicationName:
-        Ref: KinesisDataAnalyticsApplication
+      ApplicationName: !Ref KinesisDataAnalyticsApplication
       ReferenceDataSource:
-        TableName: AGENT_STATUS_INFO
+        TableName: "AGENT_STATUS_INFO"
         ReferenceSchema:
           RecordColumns:
-          - Name: StateName
-            SqlType: VARCHAR(128)
-          - Name: StateType
-            SqlType: CHAR(1)
+          - Name: "StateName"
+            SqlType: "VARCHAR(128)"
+          - Name: "StateType"
+            SqlType: "CHAR(1)"
           RecordFormat:
-            RecordFormatType: CSV
+            RecordFormatType: "CSV"
             MappingParameters:
               CSVMappingParameters:
                 RecordColumnDelimiter: ','
-                RecordRowDelimiter: '
-
-                  '
+                RecordRowDelimiter: '\n'
         S3ReferenceDataSource:
           BucketARN:
             Fn::GetAtt: S3Bucket.Arn
