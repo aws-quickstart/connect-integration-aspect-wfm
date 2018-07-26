@@ -78,8 +78,7 @@ Resources:
   KinesisDataAnalyticsApplication:
     Type: AWS::KinesisAnalytics::Application
     Properties:
-      ApplicationName:
-        Fn::Sub: ${KdaApplicationName}
+      ApplicationName: !Sub ${KdaApplicationName}
       ApplicationDescription: "Aspect WFM Agent Productivity Report Generator"
       ApplicationCode: "CREATE OR REPLACE STREAM \"DESTINATION_SQL_STREAM\"\n  (\"\
         AWSAccountId\" char(12),\n  \"Username\" varchar(256),\n  \"AHGLevel1\" varchar(256),\n\
@@ -279,8 +278,7 @@ Resources:
     Type: AWS::KinesisAnalytics::ApplicationOutput
     DependsOn: KinesisDataAnalyticsApplication
     Properties:
-      ApplicationName:
-        Ref: KinesisDataAnalyticsApplication
+      ApplicationName: !Ref KinesisDataAnalyticsApplication
       Output:
         Name: 'DESTINATION_SQL_STREAM'
         DestinationSchema:
