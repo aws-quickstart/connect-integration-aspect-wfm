@@ -286,10 +286,8 @@ Resources:
         DestinationSchema:
           RecordFormatType: 'CSV'
         KinesisFirehoseOutput:
-          ResourceARN:
-            !GetAtt OutputKinesisFirehose.Arn
-          RoleARN:
-            !GetAtt KinesisAnalyticsAppRole.Arn
+          ResourceARN: !GetAtt OutputKinesisFirehose.Arn
+          RoleARN: !GetAtt KinesisAnalyticsAppRole.Arn
   OutputKinesisFirehose:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
