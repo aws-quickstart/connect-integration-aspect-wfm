@@ -11,4 +11,4 @@ global:
 tests:
   default:
    parameter_input: defaults.json
-   template_file: aspect-wfm-ap-kda.yaml
+   template_file: aspect-wfm-ap-kda.template
