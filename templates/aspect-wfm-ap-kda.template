@@ -321,7 +321,9 @@ Resources:
             MappingParameters:
               CSVMappingParameters:
                 RecordColumnDelimiter: ','
-                RecordRowDelimiter: '\n'
+                RecordRowDelimiter: '
+
+                  '
         S3ReferenceDataSource:
           BucketARN:
             Fn::GetAtt: S3Bucket.Arn
