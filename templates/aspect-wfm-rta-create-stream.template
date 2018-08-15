@@ -1,0 +1,46 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Aspect AWS Connect RTA CloudFormation template with
+  associated Kinesis stream
+Resources:
+  CreateStreamStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://aws-quickstart.s3.amazonaws.com/connect-integration-aspect-wfm/templates/create-kinesis-stream.template
+  WorkloadStack:
+    DependsOn: CreateStreamStack
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://aws-quickstart.s3.amazonaws.com/connect-integration-aspect-wfm/templates/aspect-wfm-rta.template
+      Parameters:
+        AgentEventStreamArn:
+          Fn::GetAtt:
+          - CreateStreamStack
+          - Outputs.KinesisStreamArn
+Outputs:
+  AgentEventStreamArn:
+    Value:
+      Fn::GetAtt:
+      - CreateStreamStack
+      - Outputs.KinesisStreamArn
+  DynamoDbTableName:
+    Value:
+      Fn::GetAtt:
+      - WorkloadStack
+      - Outputs.DynamoDbTableName
+  SqsQueueUrl:
+    Value:
+      Fn::GetAtt:
+      - WorkloadStack
+      - Outputs.SqsQueueUrl
+  LambdaFunctionName:
+    Value:
+      Fn::GetAtt:
+      - WorkloadStack
+      - Outputs.LambdaFunctionName
+  RTAUserName:
+    Value:
+      Fn::GetAtt:
+      - WorkloadStack
+      - Outputs.RTAUserName
+...

@@ -15,6 +15,7 @@ Metadata:
       Parameters:
       - ConnectS3Bucket
       - ConnectS3Prefix
+      - AgentEventStreamArn
     ParameterLabels:
       KdaApplicationName:
         default: Aspect Kinesis Application Name
@@ -24,6 +25,8 @@ Metadata:
         default: Amazon Connect Exported Reports Bucket
       ConnectS3Prefix:
         default: Amazon Connect Exported Reports Prefix
+      AgentEventStreamArn:
+        default: Agent Event Kinesis Stream ARN
 Parameters:
   KdaApplicationName:
     Type: String
@@ -57,6 +60,10 @@ Parameters:
     Default: connect/directory/Reports/Aspect/
     Description: Enter the prefix under which the exported reports read by WFM Adapter
       will be exported, in the Exported reports bucket of your Amazon Connect instance.
+  AgentEventStreamArn:
+    Type: String
+    Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream 
+      to which Amazon Connect delivers Agent Events.
 Rules:
   ParameterDefaults:
     Assertions:
@@ -71,10 +78,6 @@ Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
-  AgentEventStreamArn:
-    Type: AWS::Kinesis::Stream
-    Properties:
-      ShardCount: 1
   KinesisDataAnalyticsApplication:
     Type: AWS::KinesisAnalytics::Application
     Properties:
@@ -148,7 +151,7 @@ Resources:
               JSONMappingParameters:
                 RecordRowPath: "$"
         KinesisStreamsInput:
-          ResourceARN: !GetAtt AgentEventStreamArn.Arn
+          ResourceARN: !Ref AgentEventStreamArn
           RoleARN: !GetAtt KinesisAnalyticsAppRole.Arn
   KinesisAnalyticsS3Role:
     Type: AWS::IAM::Role
@@ -185,7 +188,7 @@ Resources:
             - kinesis:GetShardIterator
             - kinesis:GetRecords
             Resource:
-            - Fn::Sub: arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${AgentEventStreamArn}
+            - Ref: AgentEventStreamArn
           - Effect: Allow
             Action:
             - kinesis:ListStreams
@@ -440,7 +443,10 @@ Resources:
             - Fn::Sub: arn:aws:s3:::${ConnectS3Bucket}
             - Fn::Sub: arn:aws:s3:::${ConnectS3Bucket}/${ConnectS3Prefix}*
 Outputs:
+  APS3BucketName:
+    Value: !Ref S3Bucket
   ApplicationPhysicalResourceId:
-    Value:
-      Ref: KinesisDataAnalyticsApplication
+    Value: !Ref KinesisDataAnalyticsApplication
+  WFMAdapterUserName:
+    Value: !Ref WFMAdapterUser
 ...

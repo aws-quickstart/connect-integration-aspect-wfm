@@ -1,0 +1,169 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Aspect AWS Connect Real-Time Adherence integeration
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Amazon Connect Configuration
+      Parameters:
+      - AgentEventStreamArn
+    ParameterLabels:
+      AgentEventStreamArn:
+        default: Agent Event Kinesis Stream ARN
+Parameters:
+  AgentEventStreamArn:
+    Type: String
+    Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream to which Amazon Connect delivers Agent Events.
+Resources:
+  DynamoDbCloudTest:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "AgentARN"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "AgentARN"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: "3"
+        WriteCapacityUnits: "1"
+  SqsQueueCloudTest:
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  LambdaRoleCloudTest:
+    Type: AWS::IAM::Role
+    DependsOn:
+    - DynamoDbCloudTest
+    - SqsQueueCloudTest
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+      Policies:
+      - PolicyName: ListReadWriteAccessToAspectConnectEventsForWfmRTListenQueue
+        PolicyDocument:
+         Version: '2012-10-17'
+         Statement:
+         - Sid: VisualEditor0
+           Effect: Allow
+           Action:
+           - sqs:GetQueueUrl
+           - sqs:SendMessage
+           Resource: 
+             - Fn::GetAtt: SqsQueueCloudTest.Arn
+         - Sid: VisualEditor1
+           Effect: Allow
+           Action: 
+           - sqs:ListQueues
+           Resource: "*"
+      - PolicyName: ReadWriteAccessToAspectConnectEventsForWfmRTListenTable
+        PolicyDocument:
+         Version: '2012-10-17'
+         Statement:
+         - Sid: VisualEditor0
+           Effect: Allow
+           Action:
+           - dynamodb:BatchGetItem
+           - dynamodb:BatchWriteItem
+           - dynamodb:PutItem
+           - dynamodb:DescribeTable
+           - dynamodb:GetItem
+           - dynamodb:Scan
+           - dynamodb:Query
+           - dynamodb:UpdateItem
+           Resource: 
+             - Fn::GetAtt: DynamoDbCloudTest.Arn
+  LambdaFunctionCloudTest:
+    Type: AWS::Lambda::Function
+    DependsOn:
+    - LambdaRoleCloudTest
+    Properties:
+      Handler: >-
+        AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler
+      Runtime: dotnetcore2.0
+      Code: 
+        S3Bucket: aws-quickstart
+        S3Key: connect-integration-aspect-wfm/functions/packages/real-time-adherence/AspectKinesisLambda.zip
+      Description: Send agent events to SQS Queue and update initial set in DynamoDB Table
+      MemorySize: 256
+      Timeout: 30
+      Role: !GetAtt LambdaRoleCloudTest.Arn
+      Environment:
+        Variables:
+          DynamoDbTableName: !Ref DynamoDbCloudTest
+          LogLevel: Debug
+          SqsQueueMessageGroupId: AspectConnectEventsForWfmRTListen_GroupId
+          SqsQueueName: !GetAtt SqsQueueCloudTest.QueueName
+          SqsQueueUrl: !Ref SqsQueueCloudTest
+          SqsQueueOwner: !Ref AWS::AccountId
+          WriteEventsToQueue: 'False'
+  LambdaKinesisStreamCloudTest:
+   Type: AWS::Lambda::EventSourceMapping
+   DependsOn:
+   - LambdaFunctionCloudTest
+   Properties: 
+    EventSourceArn:
+      Ref: AgentEventStreamArn
+    FunctionName: !Ref LambdaFunctionCloudTest
+    StartingPosition: TRIM_HORIZON
+  UserCloudTest:
+    Type: AWS::IAM::User
+  PolicyCloudTest:
+   Type: AWS::IAM::Policy
+   DependsOn:
+   - UserCloudTest
+   - DynamoDbCloudTest
+   - SqsQueueCloudTest
+   - LambdaFunctionCloudTest
+   Properties:  
+     PolicyName: AspectConnectEventsForWfmRTListen_QueueDrainerPolicy 
+     Users:
+     - !Ref UserCloudTest
+     PolicyDocument:
+       Version: '2012-10-17'
+       Statement:
+       - Sid: VisualEditor0
+         Effect: Allow
+         Action:
+         - sqs:DeleteMessage
+         - sqs:GetQueueUrl
+         - dynamodb:DescribeTable
+         - sqs:PurgeQueue
+         - sqs:ReceiveMessage
+         - dynamodb:Scan
+         - lambda:GetFunctionConfiguration
+         - lambda:UpdateFunctionConfiguration
+         - dynamodb:GetItem
+         Resource:
+         - Fn::GetAtt: DynamoDbCloudTest.Arn
+         - Fn::GetAtt: SqsQueueCloudTest.Arn
+         - Fn::GetAtt: LambdaFunctionCloudTest.Arn
+       - Sid: VisualEditor1
+         Effect: Allow
+         Action:
+         - sqs:ListQueues
+         Resource: "*"
+Outputs:
+  DynamoDbTableName:
+    Value: !Ref DynamoDbCloudTest
+  SqsQueueUrl:
+    Value: !Ref SqsQueueCloudTest
+  LambdaFunctionName:
+    Value: !Ref LambdaFunctionCloudTest
+  RTAUserName:
+    Value: !Ref UserCloudTest
+...
