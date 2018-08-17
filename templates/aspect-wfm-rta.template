@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Aspect AWS Connect Real-Time Adherence integeration
+Description: Aspect AWS Connect Real-Time Adherence integration
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -28,7 +28,7 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: "3"
         WriteCapacityUnits: "1"
-  SqsQueueCloudTest:
+  SqsQ:
     Type: AWS::SQS::Queue
     Properties:
       ContentBasedDeduplication: true
@@ -42,7 +42,7 @@ Resources:
     Type: AWS::IAM::Role
     DependsOn:
     - DynamoDbCloudTest
-    - SqsQueueCloudTest
+    - SqsQ
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -64,7 +64,7 @@ Resources:
            - sqs:GetQueueUrl
            - sqs:SendMessage
            Resource: 
-             - Fn::GetAtt: SqsQueueCloudTest.Arn
+             - Fn::GetAtt: SqsQ.Arn
          - Sid: VisualEditor1
            Effect: Allow
            Action: 
@@ -107,8 +107,8 @@ Resources:
           DynamoDbTableName: !Ref DynamoDbCloudTest
           LogLevel: Debug
           SqsQueueMessageGroupId: AspectConnectEventsForWfmRTListen_GroupId
-          SqsQueueName: !GetAtt SqsQueueCloudTest.QueueName
-          SqsQueueUrl: !Ref SqsQueueCloudTest
+          SqsQueueName: !GetAtt SqsQ.QueueName
+          SqsQueueUrl: !Ref SqsQ
           SqsQueueOwner: !Ref AWS::AccountId
           WriteEventsToQueue: 'False'
   LambdaKinesisStreamCloudTest:
@@ -127,7 +127,7 @@ Resources:
    DependsOn:
    - UserCloudTest
    - DynamoDbCloudTest
-   - SqsQueueCloudTest
+   - SqsQ
    - LambdaFunctionCloudTest
    Properties:  
      PolicyName: AspectConnectEventsForWfmRTListen_QueueDrainerPolicy 
@@ -150,7 +150,7 @@ Resources:
          - dynamodb:GetItem
          Resource:
          - Fn::GetAtt: DynamoDbCloudTest.Arn
-         - Fn::GetAtt: SqsQueueCloudTest.Arn
+         - Fn::GetAtt: SqsQ.Arn
          - Fn::GetAtt: LambdaFunctionCloudTest.Arn
        - Sid: VisualEditor1
          Effect: Allow
@@ -161,7 +161,7 @@ Outputs:
   DynamoDbTableName:
     Value: !Ref DynamoDbCloudTest
   SqsQueueUrl:
-    Value: !Ref SqsQueueCloudTest
+    Value: !Ref SqsQ
   LambdaFunctionName:
     Value: !Ref LambdaFunctionCloudTest
   RTAUserName:
