@@ -94,7 +94,7 @@ Resources:
     Properties:
       Handler: >-
         AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler
-      Runtime: dotnetcore2.0
+      Runtime: dotnetcore2.1
       Code: 
         S3Bucket: aws-quickstart
         S3Key: connect-integration-aspect-wfm/functions/packages/real-time-adherence/AspectKinesisLambda.zip
