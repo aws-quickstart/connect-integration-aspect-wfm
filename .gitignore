@@ -1,0 +1,11 @@
+
+functions/source/real-time-adherence/.vs/*
+functions/source/real-time-adherence/AspectAwsLambdaLogger/bin/*
+functions/source/real-time-adherence/AspectAwsLambdaLogger/obj/*
+functions/source/real-time-adherence/AspectAwsNLogger/bin/*
+functions/source/real-time-adherence/AspectAwsNLogger/obj/*
+functions/source/real-time-adherence/AspectKinesisLamda/bin/*
+functions/source/real-time-adherence/AspectKinesisLamda/obj/*
+functions/source/real-time-adherence/AspectKinesisLamda.Tests/bin/*
+functions/source/real-time-adherence/AspectKinesisLamda.Tests/obj/*
+*.cache
