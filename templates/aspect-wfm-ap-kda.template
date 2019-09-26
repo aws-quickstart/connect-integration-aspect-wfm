@@ -78,6 +78,17 @@ Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
+  LambdaZipsBucket:
+    Type: AWS::S3::Bucket
+  CopyZips:
+    Type: Custom::CopyZips
+    Properties:
+      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+      DestBucket: !Ref 'LambdaZipsBucket'
+      SourceBucket: !Ref 'QSS3BucketName'
+      Prefix: !Ref 'QSS3KeyPrefix'
+      Objects:
+        - functions/packages/agent-productivity/lambda.zip
   KinesisDataAnalyticsApplication:
     Type: AWS::KinesisAnalytics::Application
     Properties:
@@ -378,14 +389,15 @@ Resources:
     DependsOn:
     - KinesisDataAnalyticsApplication
     - OutputKinesisFirehose
+    - CopyZips
     Properties:
       FunctionName:
         Fn::Sub: ${KdaApplicationName}-lambda
       Description: Periodically write to Agent Productivity firehose stream to ensure
         that files are created
       Code:
-        S3Bucket: aws-quickstart
-        S3Key: connect-integration-aspect-wfm/functions/packages/agent-productivity/lambda.zip
+        S3Bucket: !Ref 'LambdaZipsBucket'
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/agent-productivity/lambda.zip'
       Environment:
         Variables:
           firehose_stream_name:

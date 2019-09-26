@@ -16,6 +16,17 @@ Parameters:
     Type: String
     Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream to which Amazon Connect delivers Agent Events.
 Resources:
+  LambdaZipsBucket:
+    Type: AWS::S3::Bucket
+  CopyZips:
+    Type: Custom::CopyZips
+    Properties:
+      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
+      DestBucket: !Ref 'LambdaZipsBucket'
+      SourceBucket: !Ref 'QSS3BucketName'
+      Prefix: !Ref 'QSS3KeyPrefix'
+      Objects:
+        - functions/packages/real-time-adherence/AspectKinesisLambda.zip
   DynamoDbCloudTest:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -91,13 +102,14 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn:
     - LambdaRoleCloudTest
+    - CopyZips
     Properties:
       Handler: >-
         AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler
       Runtime: dotnetcore2.1
       Code: 
-        S3Bucket: aws-quickstart
-        S3Key: connect-integration-aspect-wfm/functions/packages/real-time-adherence/AspectKinesisLambda.zip
+        S3Bucket: !Ref 'LambdaZipsBucket'
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/real-time-adherence/AspectKinesisLambda.zip
       Description: Send agent events to SQS Queue and update initial set in DynamoDB Table
       MemorySize: 256
       Timeout: 30
