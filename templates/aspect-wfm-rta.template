@@ -224,7 +224,7 @@ Resources:
       Runtime: dotnetcore2.1
       Code: 
         S3Bucket: !Ref 'LambdaZipsBucket'
-        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/real-time-adherence/AspectKinesisLambda.zip
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/real-time-adherence/AspectKinesisLambda.zip'
       Description: Send agent events to SQS Queue and update initial set in DynamoDB Table
       MemorySize: 256
       Timeout: 30
