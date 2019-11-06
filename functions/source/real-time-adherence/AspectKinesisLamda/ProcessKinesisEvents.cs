@@ -90,13 +90,17 @@ namespace AspectKinesisLamda
             if (!String.IsNullOrEmpty(recordData))
             {
                 ConnectKinesisEventRecord streamRecord = ConvertRecordData(recordData);
-                if (streamRecord.LastEventType != HEARTBEAT_EVENTTYPE)
+                // if we were able to parse this event, send to DynamoDB and SQS.
+                if (streamRecord != null)
                 {
-                    await ProcessEventToTable(streamRecord);
-                }
-                if (writeEventsToQueue)
-                {
-                    await ProcessEventToQueue(recordData);               
+                    if (streamRecord.LastEventType != HEARTBEAT_EVENTTYPE)
+                    {
+                        await ProcessEventToTable(streamRecord);
+                    }
+                    if (writeEventsToQueue)
+                    {
+                        await ProcessEventToQueue(recordData);
+                    }
                 }
             }
 
@@ -122,7 +126,26 @@ namespace AspectKinesisLamda
         {
             _logger.Trace("Beginning ConvertRecordData");
 
-            EventRecordData recordDataObject = JsonConvert.DeserializeObject<EventRecordData>(recordData);
+            EventRecordData recordDataObject;
+            try
+            {
+                recordDataObject = JsonConvert.DeserializeObject<EventRecordData>(recordData);
+            }
+            catch (Exception e)
+            {
+                _logger.Error($"Exception deserializing recordData: {e}. Discarding recordData.");
+                // This record doesn't match the EventRecordData format, return a value that
+                // indicates that this record should be discarded.
+                return null;
+            }
+
+            // if this record doesn't include an agent ARN, assume it doesn't match the
+            // required format. Discard it.
+            if (String.IsNullOrEmpty(recordDataObject.AgentARN))
+            {
+                _logger.Info("recordData does not include AgentARN. Discarding recordData.");
+                return null;
+            }
             
             ConnectKinesisEventRecord streamRecord = new ConnectKinesisEventRecord()
             {
