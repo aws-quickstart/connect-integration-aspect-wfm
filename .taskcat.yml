@@ -17,4 +17,4 @@ tests:
     - eu-central-1
     - ap-southeast-2
     s3_bucket: ''
-    template: templates/aspect-wfm-ap-kda.template
+    template: templates/aspect-wfm-ap-kda.template.yaml
