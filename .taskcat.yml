@@ -1,0 +1,20 @@
+project:
+  name: connect-integration-aspect-wfm
+  owner: support@aspect.com
+  package_lambda: false
+  regions:
+  - us-east-1
+  - us-west-2
+  - eu-central-1
+  - ap-southeast-2
+  s3_bucket: ''
+tests:
+  default:
+    parameters: {}
+    regions:
+    - us-east-1
+    - us-west-2
+    - eu-central-1
+    - ap-southeast-2
+    s3_bucket: ''
+    template: templates/aspect-wfm-ap-kda.template

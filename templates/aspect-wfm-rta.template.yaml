@@ -11,15 +11,18 @@ Metadata:
     - Label:
         default: AWS Quick Start configuration
       Parameters:
-      - QSS3BucketName
-      - QSS3KeyPrefix
+        - QSS3BucketName
+        - QSS3BucketRegion
+        - QSS3KeyPrefix
     ParameterLabels:
       AgentEventStreamArn:
         default: Agent Event Kinesis Stream ARN
       QSS3BucketName:
-        default: QuickStart S3 bucket name
+        default: Quick Start S3 Bucket Name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
       QSS3KeyPrefix:
-        default: QuickStart S3 key prefix
+        default: Quick Start S3 Key Prefix
 Parameters:
   AgentEventStreamArn:
     Type: String
@@ -34,6 +37,10 @@ Parameters:
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
     Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
     ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
@@ -43,6 +50,8 @@ Parameters:
       can include numbers, lowercase letters, uppercase letters, hyphens (-), and
       forward slash (/).
     Type: String
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 Resources:
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
@@ -51,7 +60,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
       DestBucket: !Ref 'LambdaZipsBucket'
-      SourceBucket: !Ref 'QSS3BucketName'
+      SourceBucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Prefix: !Ref 'QSS3KeyPrefix'
       Objects:
         - functions/packages/real-time-adherence/AspectKinesisLambda.zip
@@ -76,14 +85,15 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource:
-                  - !Sub 'arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               - Effect: Allow
                 Action:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource:
-                  - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/${QSS3KeyPrefix}*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${LambdaZipsBucket}-${AWS::Region}/${QSS3KeyPrefix}*'
   CopyZipsFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -152,8 +162,8 @@ Resources:
         - AttributeName: "AgentARN"
           KeyType: "HASH"
       ProvisionedThroughput:
-        ReadCapacityUnits: "3"
-        WriteCapacityUnits: "1"
+        ReadCapacityUnits: 3
+        WriteCapacityUnits: 1
   SqsQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -216,7 +226,6 @@ Resources:
   LambdaFunctionCloudTest:
     Type: AWS::Lambda::Function
     DependsOn:
-    - LambdaRoleCloudTest
     - CopyZips
     Properties:
       Handler: >-
@@ -240,8 +249,6 @@ Resources:
           WriteEventsToQueue: 'False'
   LambdaKinesisStreamCloudTest:
    Type: AWS::Lambda::EventSourceMapping
-   DependsOn:
-   - LambdaFunctionCloudTest
    Properties: 
     EventSourceArn:
       Ref: AgentEventStreamArn
@@ -252,7 +259,6 @@ Resources:
   PolicyCloudTest:
    Type: AWS::IAM::Policy
    DependsOn:
-   - UserCloudTest
    - DynamoDbCloudTest
    - SqsQ
    - LambdaFunctionCloudTest

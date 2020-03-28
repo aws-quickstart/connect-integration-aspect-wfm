@@ -14,13 +14,15 @@ Metadata:
         default: Amazon Connect Configuration
       Parameters:
       - ConnectS3Bucket
+      - ConnectS3Region
       - ConnectS3Prefix
       - AgentEventStreamArn
     - Label:
         default: AWS Quick Start configuration
-      Parameters:
-      - QSS3BucketName
-      - QSS3KeyPrefix
+      Parameters:      
+        - QSS3BucketName
+        - QSS3BucketRegion
+        - QSS3KeyPrefix
     ParameterLabels:
       KdaApplicationName:
         default: Aspect Kinesis Application Name
@@ -28,14 +30,18 @@ Metadata:
         default: Aspect WFM Report Prefix
       ConnectS3Bucket:
         default: Amazon Connect Exported Reports Bucket
+      ConnectS3Region:
+        default: Amazon Connect Exported Reports bucket region
       ConnectS3Prefix:
         default: Amazon Connect Exported Reports Prefix
       AgentEventStreamArn:
         default: Agent Event Kinesis Stream ARN
       QSS3BucketName:
-        default: QuickStart S3 bucket name
+        default: Quick Start S3 Bucket Name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
       QSS3KeyPrefix:
-        default: QuickStart S3 key prefix
+        default: Quick Start S3 Key Prefix
 Parameters:
   KdaApplicationName:
     Type: String
@@ -64,6 +70,10 @@ Parameters:
     Type: String
     Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect
       instance.
+  ConnectS3Region:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Amazon Connect S3 bucket is hosted.'
+    Type: String
   ConnectS3Prefix:
     Type: String
     Default: connect/directory/Reports/Aspect/
@@ -82,6 +92,10 @@ Parameters:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
@@ -102,6 +116,8 @@ Rules:
           - connect/directory/Reports/Aspect/
       AssertDescription: Replace directory with the directory name of your Amazon
         Connect instance.
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -113,7 +129,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
       DestBucket: !Ref 'LambdaZipsBucket'
-      SourceBucket: !Ref 'QSS3BucketName'
+      SourceBucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Prefix: !Ref 'QSS3KeyPrefix'
       Objects:
         - functions/packages/agent-productivity/lambda.zip
@@ -138,14 +154,15 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource:
-                  - !Sub 'arn:aws:s3:::${QSS3BucketName}/${QSS3KeyPrefix}*'
+                Resource: !Sub
+                  - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
               - Effect: Allow
                 Action:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource:
-                  - !Sub 'arn:aws:s3:::${LambdaZipsBucket}/${QSS3KeyPrefix}*'
+                  - !Sub 'arn:${AWS::Partition}:s3:::${LambdaZipsBucket}-${AWS::Region}/${QSS3KeyPrefix}*'
   CopyZipsFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -384,8 +401,8 @@ Resources:
           - s3:ListBucketMultipartUploads
           - s3:PutObject
           Resource:
-          - Fn::Sub: arn:aws:s3:::${S3Bucket}
-          - Fn::Sub: arn:aws:s3:::${S3Bucket}/${AspectApDataS3Prefix}*
+          - Fn::Sub: arn:${AWS::Partition}:s3:::${S3Bucket}-${AWS::Region}
+          - Fn::Sub: arn:${AWS::Partition}:s3:::${S3Bucket}-${AWS::Region}/${AspectApDataS3Prefix}*
       Roles:
       - Ref: FirehoseRole
   FirehoseLogsPolicy:
@@ -405,7 +422,6 @@ Resources:
       - Ref: FirehoseRole
   KinesisDataAnalyticsApplicationOutputs:
     Type: AWS::KinesisAnalytics::ApplicationOutput
-    DependsOn: KinesisDataAnalyticsApplication
     Properties:
       ApplicationName: !Ref KinesisDataAnalyticsApplication
       Output:
@@ -502,8 +518,6 @@ Resources:
   FirehoseUpdateLambda:
     Type: AWS::Lambda::Function
     DependsOn:
-    - KinesisDataAnalyticsApplication
-    - OutputKinesisFirehose
     - CopyZips
     Properties:
       FunctionName:
@@ -567,8 +581,8 @@ Resources:
             Resource:
             - Fn::GetAtt: S3Bucket.Arn
             - Fn::Sub: ${S3Bucket.Arn}/${AspectApDataS3Prefix}*
-            - Fn::Sub: arn:aws:s3:::${ConnectS3Bucket}
-            - Fn::Sub: arn:aws:s3:::${ConnectS3Bucket}/${ConnectS3Prefix}*
+            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}-${ConnectS3Region}
+            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}-${ConnectS3Region}/${ConnectS3Prefix}*
 Outputs:
   APS3BucketName:
     Value: !Ref S3Bucket
