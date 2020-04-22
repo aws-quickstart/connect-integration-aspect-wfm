@@ -14,7 +14,6 @@ Metadata:
         default: Amazon Connect Configuration
       Parameters:
       - ConnectS3Bucket
-      - ConnectS3Region
       - ConnectS3Prefix
       - AgentEventStreamArn
     - Label:
@@ -30,8 +29,6 @@ Metadata:
         default: Aspect WFM Report Prefix
       ConnectS3Bucket:
         default: Amazon Connect Exported Reports Bucket
-      ConnectS3Region:
-        default: Amazon Connect Exported Reports bucket region
       ConnectS3Prefix:
         default: Amazon Connect Exported Reports Prefix
       AgentEventStreamArn:
@@ -69,10 +66,6 @@ Parameters:
   ConnectS3Bucket:
     Type: String
     Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect instance.
-  ConnectS3Region:
-    Default: 'us-east-1'
-    Description: 'The AWS Region where the Amazon Connect S3 bucket is hosted.'
-    Type: String
   ConnectS3Prefix:
     Type: String
     Default: connect/directory/Reports/Aspect/
@@ -128,7 +121,6 @@ Resources:
         KdaApplicationName: !Ref KdaApplicationName
         AspectApDataS3Prefix: !Ref AspectApDataS3Prefix
         ConnectS3Bucket: !Ref ConnectS3Bucket
-        ConnectS3Region: !Ref ConnectS3Region
         ConnectS3Prefix: !Ref ConnectS3Prefix
         AgentEventStreamArn: !Ref AgentEventStreamArn
         QSS3BucketName: !Ref QSS3BucketName
