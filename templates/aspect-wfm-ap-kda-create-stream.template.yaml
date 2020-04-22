@@ -14,7 +14,6 @@ Metadata:
         default: Amazon Connect Configuration
       Parameters:
       - ConnectS3Bucket
-      - ConnectS3Region
       - ConnectS3Prefix
     - Label:
         default: AWS Quick Start configuration
@@ -66,10 +65,6 @@ Parameters:
   ConnectS3Bucket:
     Type: String
     Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect instance.
-  ConnectS3Region:
-    Default: 'us-east-1'
-    Description: 'The AWS Region where the Amazon Connect S3 bucket is hosted.'
-    Type: String
   ConnectS3Prefix:
     Type: String
     Default: connect/directory/Reports/Aspect/
@@ -131,7 +126,6 @@ Resources:
         KdaApplicationName: !Ref KdaApplicationName
         AspectApDataS3Prefix: !Ref AspectApDataS3Prefix
         ConnectS3Bucket: !Ref ConnectS3Bucket
-        ConnectS3Region: !Ref ConnectS3Region
         ConnectS3Prefix: !Ref ConnectS3Prefix
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
