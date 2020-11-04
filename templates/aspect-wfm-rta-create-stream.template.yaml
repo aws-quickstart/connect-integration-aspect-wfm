@@ -6,12 +6,30 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
+          default: Aspect WFM Configuration
+        Parameters:
+          - NumSQSQueues
+      - Label:
+          default: Amazon Connect Configuration
+        Parameters:
+          - AHGFilterLevel
+          - AHGFilterSeparator
+          - AHGFilterValues
+      - Label:
           default: AWS Quick Start configuration
         Parameters:
           - QSS3BucketName
           - QSS3BucketRegion
           - QSS3KeyPrefix
     ParameterLabels:
+      NumSQSQueues:
+        default: Number of SQS Queues
+      AHGFilterLevel:
+        default: Agent Hierarchy Group Level
+      AHGFilterSeparator:
+        default: Agent Hierarchy Group filter value separator
+      AHGFilterValues:
+        default: Agent Hierarchy Group filter matching values
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3BucketRegion:
@@ -19,6 +37,35 @@ Metadata:
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
 Parameters:
+  NumSQSQueues:
+    Description: The number of SQS queues to create (must be between 1 and 10). Creating additional SQS queues can reduce the latency of state changes.
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+    ConstraintDescription: Must be a number between 1 and 10.
+  AHGFilterLevel:
+    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
+      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
+      be filtered based on that Agent Hierarchy Group Level.
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 5
+    ConstraintDescription: Must be a number between 0 and 5.
+  AHGFilterSeparator:
+    Description: Character used to separate matching values listed in AHGFilterValues. You should configure a separator
+      character that does not appear in any of the individual matching values.
+    Type: String
+    Default: ","
+    MinLength: 1
+    MaxLength: 1
+  AHGFilterValues:
+    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group 
+      filtering, any agent events with an Agent Hierarchy Group Level value matching one of the values listed here will
+      be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
+      values should be separated with the character configured in AHGFilterSeparator.
+    Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription:
@@ -76,6 +123,10 @@ Resources:
               !Ref QSS3BucketName,
             ]
       Parameters:
+        NumSQSQueues: !Ref NumSQSQueues
+        AHGFilterLevel: !Ref AHGFilterLevel
+        AHGFilterSeparator: !Ref AHGFilterSeparator
+        AHGFilterValues: !Ref AHGFilterValues
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -94,11 +145,56 @@ Outputs:
       Fn::GetAtt:
         - WorkloadStack
         - Outputs.DynamoDbTableName
-  SqsQueueUrl:
+  SqsQueueUrl1:
     Value:
       Fn::GetAtt:
         - WorkloadStack
-        - Outputs.SqsQueueUrl
+        - Outputs.SqsQueueUrl1
+  SqsQueueUrl2:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl2
+  SqsQueueUrl3:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl3
+  SqsQueueUrl4:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl4
+  SqsQueueUrl5:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl5
+  SqsQueueUrl6:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl6
+  SqsQueueUrl7:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl7
+  SqsQueueUrl8:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl8
+  SqsQueueUrl9:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl9
+  SqsQueueUrl10:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.SqsQueueUrl10
   LambdaFunctionName:
     Value:
       Fn::GetAtt:

@@ -4,6 +4,6 @@ namespace AspectKinesisLamda
 {
     public interface IAwsSqsFacade
     {
-        Task SendMessageToQueue(string recordData);
+        Task SendMessageToQueue(string recordData, string agentArn);
     }
 }

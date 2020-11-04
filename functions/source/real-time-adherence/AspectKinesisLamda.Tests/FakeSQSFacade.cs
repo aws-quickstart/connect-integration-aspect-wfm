@@ -12,7 +12,7 @@ namespace AspectKinesisLamda.Tests
            SqsQueue = new List<string>();
         }
 
-        public Task SendMessageToQueue(string recordData)
+        public Task SendMessageToQueue(string recordData, string agentArn)
         {
             SqsQueue.Add(recordData);
             return Task.CompletedTask;
