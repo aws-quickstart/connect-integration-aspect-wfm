@@ -10,11 +10,15 @@ Metadata:
       Parameters:
       - KdaApplicationName
       - AspectApDataS3Prefix
+      - NumSQSQueues
     - Label:
         default: Amazon Connect Configuration
       Parameters:
       - ConnectS3Bucket
       - ConnectS3Prefix
+      - AHGFilterLevel
+      - AHGFilterSeparator
+      - AHGFilterValues
     - Label:
         default: AWS Quick Start configuration
       Parameters:      
@@ -26,10 +30,18 @@ Metadata:
         default: Aspect Kinesis Application Name
       AspectApDataS3Prefix:
         default: Aspect WFM Report Prefix
+      NumSQSQueues:
+        default: Number of SQS Queues
       ConnectS3Bucket:
         default: Amazon Connect Exported Reports Bucket
       ConnectS3Prefix:
         default: Amazon Connect Exported Reports Prefix
+      AHGFilterLevel:
+        default: Agent Hierarchy Group Level
+      AHGFilterSeparator:
+        default: Agent Hierarchy Group filter value separator
+      AHGFilterValues:
+        default: Agent Hierarchy Group filter matching values
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3BucketRegion:
@@ -60,6 +72,13 @@ Parameters:
     Description: Enter the prefix for Aspect WFM Agent Productivity reports written
       to S3.  You should configure the corresponding WFM Adapter data source to match
       this value, in the Firehose Report Root Path data source parameter.
+  NumSQSQueues:
+    Description: The number of SQS queues to create (must be between 1 and 10). Creating additional SQS queues can reduce the latency of state changes.
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+    ConstraintDescription: Must be a number between 1 and 10.
   ConnectS3Bucket:
     Type: String
     Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect instance.
@@ -68,6 +87,28 @@ Parameters:
     Default: connect/directory/Reports/Aspect/
     Description: Enter the prefix under which the exported reports read by WFM Adapter will be
       exported, in the Exported reports bucket of your Amazon Connect instance.
+  AHGFilterLevel:
+    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
+      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
+      be filtered based on that Agent Hierarchy Group Level.
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 5
+    ConstraintDescription: Must be a number between 0 and 5.
+  AHGFilterSeparator:
+    Description: Character used to separate matching values listed in AHGFilterValues. You should configure a separator
+      character that does not appear in any of the individual matching values.
+    Type: String
+    Default: ","
+    MinLength: 1
+    MaxLength: 1
+  AHGFilterValues:
+    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group 
+      filtering, any agent events with an Agent Hierarchy Group Level value matching one of the values listed here will
+      be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
+      values should be separated with the character configured in AHGFilterSeparator.
+    Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase
@@ -140,6 +181,10 @@ Resources:
           - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
             S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
+        NumSQSQueues: !Ref NumSQSQueues
+        AHGFilterLevel: !Ref AHGFilterLevel
+        AHGFilterSeparator: !Ref AHGFilterSeparator
+        AHGFilterValues: !Ref AHGFilterValues
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -173,11 +218,56 @@ Outputs:
       Fn::GetAtt:
       - RtaStack
       - Outputs.DynamoDbTableName
-  SqsQueueUrl:
+  SqsQueueUrl1:
     Value:
       Fn::GetAtt:
       - RtaStack
-      - Outputs.SqsQueueUrl
+      - Outputs.SqsQueueUrl1
+  SqsQueueUrl2:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl2
+  SqsQueueUrl3:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl3
+  SqsQueueUrl4:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl4
+  SqsQueueUrl5:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl5
+  SqsQueueUrl6:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl6
+  SqsQueueUrl7:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl7
+  SqsQueueUrl8:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl8
+  SqsQueueUrl9:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl9
+  SqsQueueUrl10:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl10
   LambdaFunctionName:
     Value:
       Fn::GetAtt:

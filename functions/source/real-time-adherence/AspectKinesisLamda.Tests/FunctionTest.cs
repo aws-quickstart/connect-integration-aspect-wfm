@@ -37,7 +37,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = null,
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:12:59.059"),
                 LastStateChangeTimeStamp = null,
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             var evnt = GenerateKinesisEvent(recordData);
@@ -108,7 +108,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = null,
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:12:59.059"),
                 LastStateChangeTimeStamp = null,
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             ConnectKinesisEventRecord stateChangeAvailableRecord = new ConnectKinesisEventRecord()
@@ -119,7 +119,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = "Available",
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:23:19.019"),
                 LastStateChangeTimeStamp = Convert.ToDateTime("2018-05-16T16:23:19.019"),
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             var evnt = GenerateKinesisEvent(recordData);
@@ -219,7 +219,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = null,
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:12:59.059"),
                 LastStateChangeTimeStamp = null,
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             ConnectKinesisEventRecord statechangeAvailableRecord = new ConnectKinesisEventRecord()
@@ -230,7 +230,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = "Available",
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:23:19.019"),
                 LastStateChangeTimeStamp = Convert.ToDateTime("2018-05-16T16:23:19.019"),
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             ConnectKinesisEventRecord heartbeatAvailableRecord = new ConnectKinesisEventRecord()
@@ -241,7 +241,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = "Available",
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:26:43.043"),
                 LastStateChangeTimeStamp = Convert.ToDateTime("2018-05-16T16:23:19.019"),
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             var evnt = GenerateKinesisEvent(recordData);
@@ -315,7 +315,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = null,
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:12:59.059"),
                 LastStateChangeTimeStamp = null,
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             ConnectKinesisEventRecord stateChangeAvailableRecord = new ConnectKinesisEventRecord()
@@ -326,7 +326,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = "Available",
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T15:23:19.019"),
                 LastStateChangeTimeStamp = Convert.ToDateTime("2018-05-16T15:23:19.019"),
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             var evnt = GenerateKinesisEvent(recordData);
@@ -378,7 +378,8 @@ namespace AspectKinesisLamda.Tests
            
             Assert.True(fakeSqsFacade.SqsQueue.Count ==1);
             string lastQueueMessage = fakeSqsFacade.SqsQueue[fakeSqsFacade.SqsQueue.Count - 1];
-            Assert.Equal(recordData, lastQueueMessage);
+            var shrunkRecord = ProcessKinesisEvents.ShrinkEvent(recordData);
+            Assert.Equal(shrunkRecord, lastQueueMessage);
         }
 
         [Fact]
@@ -465,7 +466,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = null,
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:12:59.059"),
                 LastStateChangeTimeStamp = null,
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             var evnt = GenerateKinesisEvent(recordData);
@@ -485,7 +486,7 @@ namespace AspectKinesisLamda.Tests
 
             Assert.True(fakeSqsFacade.SqsQueue.Count == 2);
             string lastQueueMessage = fakeSqsFacade.SqsQueue[fakeSqsFacade.SqsQueue.Count - 1];
-            Assert.Equal(recordData, lastQueueMessage);
+            Assert.Equal(loginRecord.RawAgentEventJSon, lastQueueMessage);
         }
 
         [Fact]
@@ -540,7 +541,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = null,
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:12:59.059"),
                 LastStateChangeTimeStamp = null,
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             var evnt = GenerateKinesisEvent(recordData);
@@ -610,7 +611,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = null,
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T16:12:59.059"),
                 LastStateChangeTimeStamp = null,
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             ConnectKinesisEventRecord stateChangeAvailableRecord = new ConnectKinesisEventRecord()
@@ -621,7 +622,7 @@ namespace AspectKinesisLamda.Tests
                 CurrentState = "Available",
                 LastEventTimeStamp = Convert.ToDateTime("2018-05-16T15:23:19.019"),
                 LastStateChangeTimeStamp = Convert.ToDateTime("2018-05-16T15:23:19.019"),
-                RawAgentEventJSon = recordData
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
             };
 
             var evnt = GenerateKinesisEvent(recordData);
@@ -638,7 +639,40 @@ namespace AspectKinesisLamda.Tests
            
             Assert.True(fakeSqsFacade.SqsQueue.Count == 2);
             string lastQueueMessage = fakeSqsFacade.SqsQueue[fakeSqsFacade.SqsQueue.Count - 1];
-            Assert.Equal(recordData, lastQueueMessage);
+            Assert.Equal(stateChangeAvailableRecord.RawAgentEventJSon, lastQueueMessage);
+        }
+
+        [Fact]
+        public async void TestLoadTesterStateChange()
+        {
+            Environment.SetEnvironmentVariable(WRITE_EVENTS_TO_QUEUE_ENVIRONMENT_VARIABLE_LOOKUP, true.ToString());
+
+            string recordData = @"{'AgentARN':'arn:aws:connect:us-east-1:271773505756:instance/cbc96518-6f6f-4088-b088-69dd5b4e48e4/agent/c2caec05-237b-41ea-8609-a1e22c53b36c','AWSAccoutId':'271773505756','CurrentAgentSnapshot':{'AgentStatus':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/2FEFAF4F-77D7-41EA-BF0A-30F78C559263/agentStatus/71098961-A697-4C52-B7E5-044B19911E2A','Name':'Available','StartTimestamp':'2020-10-08T11:53:27.107Z'},'Configuration':{'FirstName':'agent1','AgentHierarchyGroups':{'Level1':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/0f8fad5b-d9cb-469f-a165-70867728950e/agenthierarchy/1EA46F31-34AD-447E-BE87-083960EE720A','Name':'Team1'},'Level2':{'ARN':null,'Name':null},'Level3':{'ARN':null,'Name':null},'Level4':{'ARN':null,'Name':null},'Level5':{'ARN':null,'Name':null}},'LastName':'ConnAgt','RoutingProfile':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/7c9e6679-7425-40de-944b-e07fc1f90ae7/routing-profile/6815DA5C-D294-4044-A7DB-2E5ADADAB765','Name':'RoutingProfile0','InboundQueues':[{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/3335BEC7-C7DE-4730-9FE9-E6F81DCE9BBA/routing-profile/B2BBD2E4-CDE9-42CB-B84B-AD4C4A7EF6DC','Name':'Queue0'},{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/459B085A-70C5-4D31-AC69-32050095C063/routing-profile/E96ED4FF-28A4-456E-888F-6CD2E9A50CD7','Name':'Queue1'}],'DefaultOutboundQueue':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance//818157BF-7110-4160-82D3-68DEBCCF09E4/routing-profile/37B27072-72FC-4BE5-A815-E80EFD2FA98B','Name':'OutQueue0'}},'Username':'CAagent1@aspect.com'},'Contacts':[{'ContactId':null,'InitialContactId':'0','InitiationMethod':'INBOUND','State':'CONNECTING','StartStateTimestamp':'2020-10-08T11:53:27.107Z','ConnectedToAgentTimestamp':null,'QueueTimestamp':'2020-10-08T11:53:27.107Z','Queue':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/3335BEC7-C7DE-4730-9FE9-E6F81DCE9BBA/routing-profile/B2BBD2E4-CDE9-42CB-B84B-AD4C4A7EF6DC','Name':'Queue0'}}]},'EventId':'EventId-1','EventTimestamp':'2020-10-08T11:53:27.107Z','EventType':'STATE_CHANGE','InstanceARN':'arn:aws:connect:us-east-1:271773505756:instance/aaaaaaaa-bbbb-ccccdddd-1','PreviousAgentSnapshot':{'AgentStatus':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/2FEFAF4F-77D7-41EA-BF0A-30F78C559263/agentStatus/71098961-A697-4C52-B7E5-044B19911E2A','Name':'Available','StartTimestamp':'2020-10-08T11:53:27.107Z'},'Configuration':{'FirstName':null,'AgentHierarchyGroups':{'Level1':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/1EA46F31-34AD-447E-BE87-083960EE720A/agenthierarchy/group1','Name':'Team1'},'Level2':{'ARN':null,'Name':null},'Level3':{'ARN':null,'Name':null},'Level4':{'ARN':null,'Name':null},'Level5':{'ARN':null,'Name':null}},'LastName':null,'RoutingProfile':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/7c9e6679-7425-40de-944b-e07fc1f90ae7/routing-profile/6815DA5C-D294-4044-A7DB-2E5ADADAB765','Name':'RoutingProfile0','InboundQueues':[{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/3335BEC7-C7DE-4730-9FE9-E6F81DCE9BBA/routing-profile/B2BBD2E4-CDE9-42CB-B84B-AD4C4A7EF6DC','Name':'Queue0'},{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/459B085A-70C5-4D31-AC69-32050095C063/routing-profile/E96ED4FF-28A4-456E-888F-6CD2E9A50CD7','Name':'Queue1'}],'DefaultOutboundQueue':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/818157BF-7110-4160-82D3-68DEBCCF09E4/routing-profile/37B27072-72FC-4BE5-A815-E80EFD2FA98B','Name':'OutQueue0'}},'Username':null},'Contacts':[{'ContactId':null,'InitialContactId':'0','InitiationMethod':'INBOUND','State':'CONNECTING','StartStateTimestamp':'2020-10-08T11:53:27.107Z','ConnectedToAgentTimestamp':null,'QueueTimestamp':'2020-10-08T11:53:27.107Z','Queue':{'ARN':'arn:aws:connect:us-east-1:271773505756:instance/3335BEC7-C7DE-4730-9FE9-E6F81DCE9BBA/routing-profile/B2BBD2E4-CDE9-42CB-B84B-AD4C4A7EF6DC','Name':'Queue0'}}]},'Version':'2019-05-25'}";
+
+            ConnectKinesisEventRecord stateChangeRecord = new ConnectKinesisEventRecord()
+            {
+                AgentARN = "arn:aws:connect:us-east-1:271773505756:instance/cbc96518-6f6f-4088-b088-69dd5b4e48e4/agent/c2caec05-237b-41ea-8609-a1e22c53b36c",
+                AgentUsername = "CAagent1@aspect.com",
+                CurrentState = "Available",
+                LastEventTimeStamp = Convert.ToDateTime("2020-10-08T11:53:27.107"),
+                LastStateChangeTimeStamp = Convert.ToDateTime("2020-10-08T11:53:27.107"),
+                RawAgentEventJSon = ProcessKinesisEvents.ShrinkEvent(recordData)
+            };
+
+            var evnt = GenerateKinesisEvent(recordData);
+
+            var context = new TestLambdaContext()
+            {
+                Logger = new FakeLambdaLogger()
+            };
+            FakeDynamoDBContext fakeDbContext = new FakeDynamoDBContext();
+            FakeSQSFacade fakeSqsFacade = new FakeSQSFacade();
+
+            var function = new ProcessKinesisEvents(fakeDbContext, fakeSqsFacade);
+            await function.AspectKinesisHandler(evnt, context);
+
+            ConnectKinesisEventRecord dynamoRecord = fakeDbContext.DynamoTable[stateChangeRecord.AgentARN];
+            AssertExpectedRecordAgainstDynamoRecord(stateChangeRecord, dynamoRecord);
         }
 
         private static KinesisEvent GenerateKinesisEvent(string recordData)
@@ -668,7 +702,6 @@ namespace AspectKinesisLamda.Tests
             Assert.Equal(expectedRecord.LastEventTimeStamp, dynamoRecord.LastEventTimeStamp); 
             Assert.Equal(expectedRecord.LastStateChangeTimeStamp, dynamoRecord.LastStateChangeTimeStamp);
             Assert.Equal(expectedRecord.RawAgentEventJSon, dynamoRecord.RawAgentEventJSon);
-
         }
     }
 }
