@@ -5,9 +5,16 @@ Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
+        default: Aspect WFM Configuration
+      Parameters:
+        - NumSQSQueues
+    - Label:
         default: Amazon Connect Configuration
       Parameters:
-      - AgentEventStreamArn
+        - AgentEventStreamArn
+        - AHGFilterLevel
+        - AHGFilterSeparator
+        - AHGFilterValues
     - Label:
         default: AWS Quick Start configuration
       Parameters:
@@ -15,8 +22,16 @@ Metadata:
         - QSS3BucketRegion
         - QSS3KeyPrefix
     ParameterLabels:
+      NumSQSQueues:
+        default: Number of SQS Queues
       AgentEventStreamArn:
         default: Agent Event Kinesis Stream ARN
+      AHGFilterLevel:
+        default: Agent Hierarchy Group Level
+      AHGFilterSeparator:
+        default: Agent Hierarchy Group filter value separator
+      AHGFilterValues:
+        default: Agent Hierarchy Group filter matching values
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3BucketRegion:
@@ -24,9 +39,38 @@ Metadata:
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
 Parameters:
+  NumSQSQueues:
+    Description: The number of SQS queues to create (must be between 1 and 10). Creating additional SQS queues can reduce the latency of state changes.
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+    ConstraintDescription: Must be a number between 1 and 10.
   AgentEventStreamArn:
     Type: String
     Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream to which Amazon Connect delivers Agent Events.
+  AHGFilterLevel:
+    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
+      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
+      be filtered based on that Agent Hierarchy Group Level.
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 5
+    ConstraintDescription: Must be a number between 0 and 5.
+  AHGFilterSeparator:
+    Description: Character used to separate matching values listed in AHGFilterValues. You should configure a separator
+      character that does not appear in any of the individual matching values.
+    Type: String
+    Default: ","
+    MinLength: 1
+    MaxLength: 1
+  AHGFilterValues:
+    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group 
+      filtering, any agent events with an Agent Hierarchy Group Level value matching one of the values listed here will
+      be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
+      values should be separated with the character configured in AHGFilterSeparator.
+    Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase
@@ -52,6 +96,38 @@ Parameters:
     Type: String
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  CreateSqsQ2: !Not [!Equals [1, !Ref NumSQSQueues]]
+  CreateSqsQ3: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  CreateSqsQ4: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  - !Not [!Equals [3, !Ref NumSQSQueues]]
+  CreateSqsQ5: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  - !Not [!Equals [3, !Ref NumSQSQueues]]
+  - !Not [!Equals [4, !Ref NumSQSQueues]]
+  CreateSqsQ6: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  - !Not [!Equals [3, !Ref NumSQSQueues]]
+  - !Not [!Equals [4, !Ref NumSQSQueues]]
+  - !Not [!Equals [5, !Ref NumSQSQueues]]
+  CreateSqsQ7: !Or
+  - !Equals [7, !Ref NumSQSQueues]
+  - !Equals [8, !Ref NumSQSQueues]
+  - !Equals [9, !Ref NumSQSQueues]
+  - !Equals [10, !Ref NumSQSQueues]
+  CreateSqsQ8: !Or
+  - !Equals [8, !Ref NumSQSQueues]
+  - !Equals [9, !Ref NumSQSQueues]
+  - !Equals [10, !Ref NumSQSQueues]
+  CreateSqsQ9: !Or
+  - !Equals [9, !Ref NumSQSQueues]
+  - !Equals [10, !Ref NumSQSQueues]
+  CreateSqsQ10: !Equals [10, !Ref NumSQSQueues]
 Resources:
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
@@ -167,7 +243,105 @@ Resources:
   SqsQ:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub 'q-${AWS::Region}.fifo' 
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ2:
+    Condition: CreateSqsQ2
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ3:
+    Condition: CreateSqsQ3
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ4:
+    Condition: CreateSqsQ4
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ5:
+    Condition: CreateSqsQ5
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ6:
+    Condition: CreateSqsQ6
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ7:
+    Condition: CreateSqsQ7
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ8:
+    Condition: CreateSqsQ8
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ9:
+    Condition: CreateSqsQ9
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ10:
+    Condition: CreateSqsQ10
+    Type: AWS::SQS::Queue
+    Properties:
       ContentBasedDeduplication: true
       DelaySeconds: 0
       FifoQueue: true
@@ -202,6 +376,15 @@ Resources:
            - sqs:SendMessage
            Resource: 
              - Fn::GetAtt: SqsQ.Arn
+             - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
          - Sid: VisualEditor1
            Effect: Allow
            Action: 
@@ -244,9 +427,20 @@ Resources:
           DynamoDbTableName: !Ref DynamoDbCloudTest
           LogLevel: Debug
           SqsQueueMessageGroupId: AspectConnectEventsForWfmRTListen_GroupId
-          SqsQueueName: !GetAtt SqsQ.QueueName
-          SqsQueueUrl: !Ref SqsQ
-          SqsQueueOwner: !Ref AWS::AccountId
+          NumSqsQueues: !Ref NumSQSQueues
+          SqsQueueUrl1: !Ref SqsQ
+          SqsQueueUrl2: !If [CreateSqsQ2, !Ref SqsQ2, !Ref "AWS::NoValue"]
+          SqsQueueUrl3: !If [CreateSqsQ3, !Ref SqsQ3, !Ref "AWS::NoValue"]
+          SqsQueueUrl4: !If [CreateSqsQ4, !Ref SqsQ4, !Ref "AWS::NoValue"]
+          SqsQueueUrl5: !If [CreateSqsQ5, !Ref SqsQ5, !Ref "AWS::NoValue"]
+          SqsQueueUrl6: !If [CreateSqsQ6, !Ref SqsQ6, !Ref "AWS::NoValue"]
+          SqsQueueUrl7: !If [CreateSqsQ7, !Ref SqsQ7, !Ref "AWS::NoValue"]
+          SqsQueueUrl8: !If [CreateSqsQ8, !Ref SqsQ8, !Ref "AWS::NoValue"]
+          SqsQueueUrl9: !If [CreateSqsQ9, !Ref SqsQ9, !Ref "AWS::NoValue"]
+          SqsQueueUrl10: !If [CreateSqsQ10, !Ref SqsQ10, !Ref "AWS::NoValue"]
+          AhgFilterLevel: !Ref AHGFilterLevel
+          AhgFilterSeparator: !Ref AHGFilterSeparator
+          AhgFilterValues: !Ref AHGFilterValues
           WriteEventsToQueue: 'False'
   LambdaKinesisStreamCloudTest:
    Type: AWS::Lambda::EventSourceMapping
@@ -285,6 +479,15 @@ Resources:
          Resource:
          - Fn::GetAtt: DynamoDbCloudTest.Arn
          - Fn::GetAtt: SqsQ.Arn
+         - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
          - Fn::GetAtt: LambdaFunctionCloudTest.Arn
        - Sid: VisualEditor1
          Effect: Allow
@@ -294,8 +497,26 @@ Resources:
 Outputs:
   DynamoDbTableName:
     Value: !Ref DynamoDbCloudTest
-  SqsQueueUrl:
+  SqsQueueUrl1:
     Value: !Ref SqsQ
+  SqsQueueUrl2:
+    Value: !If [CreateSqsQ2, !Ref SqsQ2, ""]
+  SqsQueueUrl3:
+    Value: !If [CreateSqsQ3, !Ref SqsQ3, ""]
+  SqsQueueUrl4:
+    Value: !If [CreateSqsQ4, !Ref SqsQ4, ""]
+  SqsQueueUrl5:
+    Value: !If [CreateSqsQ5, !Ref SqsQ5, ""]
+  SqsQueueUrl6:
+    Value: !If [CreateSqsQ6, !Ref SqsQ6, ""]
+  SqsQueueUrl7:
+    Value: !If [CreateSqsQ7, !Ref SqsQ7, ""]
+  SqsQueueUrl8:
+    Value: !If [CreateSqsQ8, !Ref SqsQ8, ""]
+  SqsQueueUrl9:
+    Value: !If [CreateSqsQ9, !Ref SqsQ9, ""]
+  SqsQueueUrl10:
+    Value: !If [CreateSqsQ10, !Ref SqsQ10, ""]
   LambdaFunctionName:
     Value: !Ref LambdaFunctionCloudTest
   RTAUserName:
