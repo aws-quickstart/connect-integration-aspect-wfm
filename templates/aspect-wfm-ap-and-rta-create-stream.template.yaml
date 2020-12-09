@@ -16,6 +16,7 @@ Metadata:
       Parameters:
       - ConnectS3Bucket
       - ConnectS3Prefix
+      - ConnectS3KmsArn
       - AHGFilterLevel
       - AHGFilterSeparator
       - AHGFilterValues
@@ -36,6 +37,8 @@ Metadata:
         default: Amazon Connect Exported Reports Bucket
       ConnectS3Prefix:
         default: Amazon Connect Exported Reports Prefix
+      ConnectS3KmsArn:
+        default: Amazon Connect Exported Reports Bucket KMS Key ARN
       AHGFilterLevel:
         default: Agent Hierarchy Group Level
       AHGFilterSeparator:
@@ -87,6 +90,13 @@ Parameters:
     Default: connect/directory/Reports/Aspect/
     Description: Enter the prefix under which the exported reports read by WFM Adapter will be
       exported, in the Exported reports bucket of your Amazon Connect instance.
+  ConnectS3KmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      the exported reports of your Amazon Connect instance. You should supply this ARN
+      if you configured your exported reports bucket to use server-side encryption with a 
+      customer-managed customer master key (CMK). Otherwise, you should leave this parameter 
+      blank.
   AHGFilterLevel:
     Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
       Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
@@ -165,6 +175,7 @@ Resources:
         AspectApDataS3Prefix: !Ref AspectApDataS3Prefix
         ConnectS3Bucket: !Ref ConnectS3Bucket
         ConnectS3Prefix: !Ref ConnectS3Prefix
+        ConnectS3KmsArn: !Ref ConnectS3KmsArn
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -172,6 +183,7 @@ Resources:
           Fn::GetAtt:
           - CreateStreamStack
           - Outputs.KinesisStreamArn
+        AgentEventStreamKmsArn: ''
   RtaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -192,6 +204,7 @@ Resources:
           Fn::GetAtt:
           - CreateStreamStack
           - Outputs.KinesisStreamArn
+        AgentEventStreamKmsArn: ''
 Outputs:
   AgentEventStreamArn:
     Value:

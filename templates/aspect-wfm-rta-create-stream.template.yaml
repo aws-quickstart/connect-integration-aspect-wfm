@@ -134,6 +134,7 @@ Resources:
           Fn::GetAtt:
             - CreateStreamStack
             - Outputs.KinesisStreamArn
+        AgentEventStreamKmsArn: ''
 Outputs:
   AgentEventStreamArn:
     Value:

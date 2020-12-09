@@ -12,6 +12,7 @@ Metadata:
         default: Amazon Connect Configuration
       Parameters:
         - AgentEventStreamArn
+        - AgentEventStreamKmsArn
         - AHGFilterLevel
         - AHGFilterSeparator
         - AHGFilterValues
@@ -26,6 +27,8 @@ Metadata:
         default: Number of SQS Queues
       AgentEventStreamArn:
         default: Agent Event Kinesis Stream ARN
+      AgentEventStreamKmsArn:
+        default: Agent Event Kinesis Stream KMS Key ARN
       AHGFilterLevel:
         default: Agent Hierarchy Group Level
       AHGFilterSeparator:
@@ -49,6 +52,12 @@ Parameters:
   AgentEventStreamArn:
     Type: String
     Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream to which Amazon Connect delivers Agent Events.
+  AgentEventStreamKmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      agent events. You should supply this ARN if you configured your Agent Event Kinesis
+      stream to use server-side encryption with a customer-managed customer master key (CMK). 
+      Otherwise, you should leave this parameter blank.
   AHGFilterLevel:
     Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
       Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
@@ -96,6 +105,8 @@ Parameters:
     Type: String
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  NoKinesisKmsKey: !Equals [!Ref AgentEventStreamKmsArn, '']
+  HasKinesisKmsKey: !Not [!Condition NoKinesisKmsKey]
   CreateSqsQ2: !Not [!Equals [1, !Ref NumSQSQueues]]
   CreateSqsQ3: !And
   - !Not [!Equals [1, !Ref NumSQSQueues]]
@@ -350,6 +361,7 @@ Resources:
       ReceiveMessageWaitTimeSeconds: 0
       VisibilityTimeout: 30
   LambdaRoleCloudTest:
+    Condition: NoKinesisKmsKey
     Type: AWS::IAM::Role
     DependsOn:
     - DynamoDbCloudTest
@@ -407,6 +419,76 @@ Resources:
            - dynamodb:UpdateItem
            Resource: 
              - Fn::GetAtt: DynamoDbCloudTest.Arn
+  LambdaRoleCloudTestKms:
+    Condition: HasKinesisKmsKey
+    Type: AWS::IAM::Role
+    DependsOn:
+    - DynamoDbCloudTest
+    - SqsQ
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+      Policies:
+      - PolicyName: ListReadWriteAccessToAspectConnectEventsForWfmRTListenQueue
+        PolicyDocument:
+         Version: '2012-10-17'
+         Statement:
+         - Sid: VisualEditor0
+           Effect: Allow
+           Action:
+           - sqs:GetQueueUrl
+           - sqs:SendMessage
+           Resource: 
+             - Fn::GetAtt: SqsQ.Arn
+             - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
+             - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
+         - Sid: VisualEditor1
+           Effect: Allow
+           Action: 
+           - sqs:ListQueues
+           Resource: "*"
+      - PolicyName: ReadWriteAccessToAspectConnectEventsForWfmRTListenTable
+        PolicyDocument:
+         Version: '2012-10-17'
+         Statement:
+         - Sid: VisualEditor0
+           Effect: Allow
+           Action:
+           - dynamodb:BatchGetItem
+           - dynamodb:BatchWriteItem
+           - dynamodb:PutItem
+           - dynamodb:DescribeTable
+           - dynamodb:GetItem
+           - dynamodb:Scan
+           - dynamodb:Query
+           - dynamodb:UpdateItem
+           Resource: 
+             - Fn::GetAtt: DynamoDbCloudTest.Arn
+      - PolicyName: KinesisKmsDecrypt
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - kms:Decrypt
+            - kms:GenerateDataKey
+            - kms:DescribeKey
+            Resource:
+            - !Ref AgentEventStreamKmsArn
   LambdaFunctionCloudTest:
     Type: AWS::Lambda::Function
     DependsOn:
@@ -421,7 +503,7 @@ Resources:
       Description: Send agent events to SQS Queue and update initial set in DynamoDB Table
       MemorySize: 256
       Timeout: 30
-      Role: !GetAtt LambdaRoleCloudTest.Arn
+      Role: !If [NoKinesisKmsKey, !GetAtt LambdaRoleCloudTest.Arn, !GetAtt LambdaRoleCloudTestKms.Arn]
       Environment:
         Variables:
           DynamoDbTableName: !Ref DynamoDbCloudTest
