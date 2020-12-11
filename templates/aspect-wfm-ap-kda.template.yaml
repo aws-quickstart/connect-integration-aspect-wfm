@@ -130,10 +130,8 @@ Rules:
         Connect instance.
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
-  NoS3KmsKey: !Equals [!Ref ConnectS3KmsArn, '']
-  HasS3KmsKey: !Not [!Condition NoS3KmsKey]
-  NoKinesisKmsKey: !Equals [!Ref AgentEventStreamKmsArn, '']
-  HasKinesisKmsKey: !Not [!Condition NoKinesisKmsKey]
+  HasS3KmsKey: !Not [!Equals [!Ref ConnectS3KmsArn, '']]
+  HasKinesisKmsKey: !Not [!Equals [!Ref AgentEventStreamKmsArn, '']]
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -311,7 +309,7 @@ Resources:
                 RecordRowPath: "$"
         KinesisStreamsInput:
           ResourceARN: !Ref AgentEventStreamArn
-          RoleARN: !If [NoKinesisKmsKey, !GetAtt KinesisAnalyticsAppRole.Arn, !GetAtt KinesisAnalyticsAppRoleKms.Arn]
+          RoleARN: !GetAtt KinesisAnalyticsAppRole.Arn
   KinesisAnalyticsS3Role:
     Type: AWS::IAM::Role
     Properties:
@@ -326,7 +324,6 @@ Resources:
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
   KinesisAnalyticsAppRole:
-    Condition: NoKinesisKmsKey
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -337,103 +334,74 @@ Resources:
             Service: kinesisanalytics.amazonaws.com
           Action: sts:AssumeRole
       Path: /service-role/
-      Policies:
-      - PolicyName: ReadInputKinesis
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - kinesis:DescribeStream
-            - kinesis:GetShardIterator
-            - kinesis:GetRecords
-            Resource:
-            - Ref: AgentEventStreamArn
-          - Effect: Allow
-            Action:
-            - kinesis:ListStreams
-            Resource: '*'
-      - PolicyName: ReadInputS3
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - s3:GetObject
-            Resource:
-            - Fn::GetAtt: S3Bucket.Arn
-            - Fn::Sub: ${S3Bucket.Arn}/*
-      - PolicyName: WriteOutputFirehose
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - firehose:DescribeDeliveryStream
-            - firehose:PutRecord
-            - firehose:PutRecordBatch
-            Resource:
-            - Fn::Sub: arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${OutputKinesisFirehose}
-  KinesisAnalyticsAppRoleKms:
+  KinesisAnalyticsAppReadInputKinesisPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KDA_ReadInputKinesis
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kinesis:DescribeStream
+          - kinesis:GetShardIterator
+          - kinesis:GetRecords
+          Resource:
+          - Ref: AgentEventStreamArn
+        - Effect: Allow
+          Action:
+          - kinesis:ListStreams
+          Resource: '*'
+  KinesisAnalyticsAppReadInputS3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KDA_ReadInputS3
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          Resource:
+          - Fn::GetAtt: S3Bucket.Arn
+          - Fn::Sub: ${S3Bucket.Arn}/*
+  KinesisAnalyticsAppWriteOutputFirehosePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KDA_WriteOutputFirehose
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - firehose:DescribeDeliveryStream
+          - firehose:PutRecord
+          - firehose:PutRecordBatch
+          Resource:
+          - Fn::Sub: arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${OutputKinesisFirehose}
+  KinesisAnalyticsAppKinesisKmsDecryptPolicy:
     Condition: HasKinesisKmsKey
-    Type: AWS::IAM::Role
+    Type: AWS::IAM::Policy
     Properties:
-      AssumeRolePolicyDocument:
+      PolicyName: KDA_KinesisKmsDecrypt
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
         Version: '2012-10-17'
         Statement:
         - Effect: Allow
-          Principal:
-            Service: kinesisanalytics.amazonaws.com
-          Action: sts:AssumeRole
-      Path: /service-role/
-      Policies:
-      - PolicyName: ReadInputKinesis
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - kinesis:DescribeStream
-            - kinesis:GetShardIterator
-            - kinesis:GetRecords
-            Resource:
-            - Ref: AgentEventStreamArn
-          - Effect: Allow
-            Action:
-            - kinesis:ListStreams
-            Resource: '*'
-      - PolicyName: ReadInputS3
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - s3:GetObject
-            Resource:
-            - Fn::GetAtt: S3Bucket.Arn
-            - Fn::Sub: ${S3Bucket.Arn}/*
-      - PolicyName: WriteOutputFirehose
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - firehose:DescribeDeliveryStream
-            - firehose:PutRecord
-            - firehose:PutRecordBatch
-            Resource:
-            - Fn::Sub: arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${OutputKinesisFirehose}
-      - PolicyName: KinesisKmsDecrypt
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - kms:Decrypt
-            - kms:GenerateDataKey
-            - kms:DescribeKey
-            Resource:
-            - !Ref AgentEventStreamKmsArn
+          Action:
+          - kms:Decrypt
+          - kms:GenerateDataKey
+          - kms:DescribeKey
+          Resource:
+          - !Ref AgentEventStreamKmsArn
   FirehoseRole:
     Type: AWS::IAM::Role
     Properties:
@@ -507,7 +475,7 @@ Resources:
           RecordFormatType: 'CSV'
         KinesisFirehoseOutput:
           ResourceARN: !GetAtt OutputKinesisFirehose.Arn
-          RoleARN: !If [NoKinesisKmsKey, !GetAtt KinesisAnalyticsAppRole.Arn, !GetAtt KinesisAnalyticsAppRoleKms.Arn]
+          RoleARN: !GetAtt KinesisAnalyticsAppRole.Arn
   OutputKinesisFirehose:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
@@ -641,63 +609,53 @@ Resources:
       SourceArn:
         Fn::GetAtt: ScheduledEvent.Arn
   WFMAdapterUser:
-    Condition: NoS3KmsKey
     Type: AWS::IAM::User
     Properties:
       Path: /
       UserName:
         Fn::Sub: WFMAdapter-${KdaApplicationName}
-      Policies:
-      - PolicyName: s3ReadOnlyAccess
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - s3:GetObject
-            - s3:ListBucket
-            Resource:
-            - Fn::GetAtt: S3Bucket.Arn
-            - Fn::Sub: ${S3Bucket.Arn}/${AspectApDataS3Prefix}*
-            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}
-            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}/${ConnectS3Prefix}*
-  WFMAdapterUserKms:
+  WFMAdapterReadS3Policy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - S3Bucket
+    Properties:
+      PolicyName: WFMAdapter_ReadS3Policy
+      Users:
+      - !Ref WFMAdapterUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          - s3:ListBucket
+          Resource:
+          - Fn::GetAtt: S3Bucket.Arn
+          - Fn::Sub: ${S3Bucket.Arn}/${AspectApDataS3Prefix}*
+          - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}
+          - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}/${ConnectS3Prefix}*
+  WFMAdapterDecryptS3Policy:
     Condition: HasS3KmsKey
-    Type: AWS::IAM::User
+    Type: AWS::IAM::Policy
     Properties:
-      Path: /
-      UserName:
-        Fn::Sub: WFMAdapter-${KdaApplicationName}
-      Policies:
-      - PolicyName: s3ReadOnlyAccess
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - s3:GetObject
-            - s3:ListBucket
-            Resource:
-            - Fn::GetAtt: S3Bucket.Arn
-            - Fn::Sub: ${S3Bucket.Arn}/${AspectApDataS3Prefix}*
-            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}
-            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}/${ConnectS3Prefix}*
-      - PolicyName: s3KmsDecrypt
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - kms:Decrypt
-            - kms:GenerateDataKey
-            - kms:DescribeKey
-            Resource:
-            - !Ref ConnectS3KmsArn
+      PolicyName: WFMAdapter_DecryptS3Policy
+      Users:
+      - !Ref WFMAdapterUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:GenerateDataKey
+          - kms:DescribeKey
+          Resource:
+          - !Ref ConnectS3KmsArn
 Outputs:
   APS3BucketName:
     Value: !Ref S3Bucket
   ApplicationPhysicalResourceId:
     Value: !Ref KinesisDataAnalyticsApplication
   WFMAdapterUserName:
-    Value: !If [NoS3KmsKey, !Ref WFMAdapterUser, !Ref WFMAdapterUserKms]
+    Value: !Ref WFMAdapterUser
 ...
