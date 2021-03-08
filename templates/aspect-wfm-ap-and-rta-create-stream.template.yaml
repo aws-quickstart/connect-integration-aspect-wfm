@@ -11,6 +11,7 @@ Metadata:
       - KdaApplicationName
       - AspectApDataS3Prefix
       - NumSQSQueues
+      - LambdaConfigLocation
     - Label:
         default: Amazon Connect Configuration
       Parameters:
@@ -33,6 +34,8 @@ Metadata:
         default: Aspect WFM Report Prefix
       NumSQSQueues:
         default: Number of SQS Queues
+      LambdaConfigLocation:
+        default: Write to SQS Flag Location
       ConnectS3Bucket:
         default: Amazon Connect Exported Reports Bucket
       ConnectS3Prefix:
@@ -82,6 +85,19 @@ Parameters:
     MinValue: 1
     MaxValue: 10
     ConstraintDescription: Must be a number between 1 and 10.
+  LambdaConfigLocation:
+    Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
+      SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
+      to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires 
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer 
+      permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
+      default, this flag will be stored in an environment variable of the RTA Lambda.
+    Type: String
+    Default: env
+    AllowedValues:
+      - env
+      - tab
   ConnectS3Bucket:
     Type: String
     Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect instance.
@@ -194,6 +210,7 @@ Resources:
             S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
         NumSQSQueues: !Ref NumSQSQueues
+        LambdaConfigLocation: !Ref LambdaConfigLocation
         AHGFilterLevel: !Ref AHGFilterLevel
         AHGFilterSeparator: !Ref AHGFilterSeparator
         AHGFilterValues: !Ref AHGFilterValues
@@ -231,6 +248,11 @@ Outputs:
       Fn::GetAtt:
       - RtaStack
       - Outputs.DynamoDbTableName
+  ConfigTableName:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.ConfigTableName
   SqsQueueUrl1:
     Value:
       Fn::GetAtt:

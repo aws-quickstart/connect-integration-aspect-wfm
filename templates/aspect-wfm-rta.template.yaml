@@ -8,6 +8,7 @@ Metadata:
         default: Aspect WFM Configuration
       Parameters:
         - NumSQSQueues
+        - LambdaConfigLocation
     - Label:
         default: Amazon Connect Configuration
       Parameters:
@@ -25,6 +26,8 @@ Metadata:
     ParameterLabels:
       NumSQSQueues:
         default: Number of SQS Queues
+      LambdaConfigLocation:
+        default: Write to SQS Flag Location
       AgentEventStreamArn:
         default: Agent Event Kinesis Stream ARN
       AgentEventStreamKmsArn:
@@ -49,6 +52,19 @@ Parameters:
     MinValue: 1
     MaxValue: 10
     ConstraintDescription: Must be a number between 1 and 10.
+  LambdaConfigLocation:
+    Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
+      SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
+      to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires 
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer 
+      permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
+      default, this flag will be stored in an environment variable of the RTA Lambda.
+    Type: String
+    Default: env
+    AllowedValues:
+      - env
+      - tab
   AgentEventStreamArn:
     Type: String
     Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream to which Amazon Connect delivers Agent Events.
@@ -138,6 +154,8 @@ Conditions:
   - !Equals [9, !Ref NumSQSQueues]
   - !Equals [10, !Ref NumSQSQueues]
   CreateSqsQ10: !Equals [10, !Ref NumSQSQueues]
+  FlagInEnv: !Equals ["env", !Ref LambdaConfigLocation]
+  FlagInTable: !Equals ["tab", !Ref LambdaConfigLocation]
 Resources:
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
@@ -247,9 +265,18 @@ Resources:
       KeySchema:
         - AttributeName: "AgentARN"
           KeyType: "HASH"
-      ProvisionedThroughput:
-        ReadCapacityUnits: 3
-        WriteCapacityUnits: 1
+      BillingMode: "PAY_PER_REQUEST"
+  DynamoDbConfig:
+    Condition: FlagInTable
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "Setting"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "Setting"
+          KeyType: "HASH"
+      BillingMode: "PAY_PER_REQUEST"
   SqsQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -416,6 +443,25 @@ Resources:
           - dynamodb:UpdateItem
           Resource: 
           - Fn::GetAtt: DynamoDbAgentEvent.Arn
+  LambdaReadConfigTablePolicy:
+    Condition: FlagInTable
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbConfig
+    Properties:
+      PolicyName: Lambda_ReadConfigTablePolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:GetItem
+          - dynamodb:Query
+          Resource: 
+          - Fn::GetAtt: DynamoDbConfig.Arn
   LambdaDecryptKinesisPolicy:
     Condition: HasKinesisKmsKey
     Type: AWS::IAM::Policy
@@ -467,6 +513,7 @@ Resources:
           AhgFilterLevel: !Ref AHGFilterLevel
           AhgFilterSeparator: !Ref AHGFilterSeparator
           AhgFilterValues: !Ref AHGFilterValues
+          ConfigTableName: !If [FlagInTable, !Ref DynamoDbConfig, !Ref "AWS::NoValue"]
           WriteEventsToQueue: 'False'
   LambdaKinesisStream:
     Type: AWS::Lambda::EventSourceMapping
@@ -495,6 +542,27 @@ Resources:
           - dynamodb:Scan
           Resource:
           - Fn::GetAtt: DynamoDbAgentEvent.Arn
+  RtaReadWriteConfigTablePolicy:
+    Condition: FlagInTable
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbConfig
+    Properties:
+      PolicyName: RTA_ReadWriteConfigTablePolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:UpdateItem
+          Resource:
+          - Fn::GetAtt: DynamoDbConfig.Arn
   RtaReadWriteQueuePolicy:
     Type: AWS::IAM::Policy
     DependsOn:
@@ -524,6 +592,7 @@ Resources:
           - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
           - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
   RtaReadWriteLambdaConfigPolicy:
+    Condition: FlagInEnv
     Type: AWS::IAM::Policy
     DependsOn:
     - LambdaFunction
@@ -543,6 +612,8 @@ Resources:
 Outputs:
   DynamoDbTableName:
     Value: !Ref DynamoDbAgentEvent
+  ConfigTableName:
+    Value: !If [FlagInTable, !Ref DynamoDbConfig, ""]
   SqsQueueUrl1:
     Value: !Ref SqsQ
   SqsQueueUrl2:
