@@ -7,13 +7,13 @@ using Amazon.DynamoDBv2.DocumentModel;
 
 namespace AspectKinesisLamda.Tests
 {
-    public class FakeDynamoDBContext : IDynamoDBContext
+    public class FakeDynamoDBContext<Record> : IDynamoDBContext
     {
-        public Dictionary<string, ConnectKinesisEventRecord> DynamoTable { get; }
+        public Dictionary<string, Record> DynamoTable { get; }
 
         public FakeDynamoDBContext()
         {
-            DynamoTable = new Dictionary<string, ConnectKinesisEventRecord>();
+            DynamoTable = new Dictionary<string, Record>();
         }
 
         public void Dispose()
@@ -73,8 +73,8 @@ namespace AspectKinesisLamda.Tests
 
         public Task SaveAsync<T>(T value, CancellationToken cancellationToken = new CancellationToken())
         {
-            ConnectKinesisEventRecord record = (ConnectKinesisEventRecord)(object)value;
-            string key = record.AgentARN;
+            Record record = (Record)(object)value;
+            string key = RecordHelper.RecordKey(record);
             if (DynamoTable.ContainsKey(key))
             {
                 DynamoTable[key] = record;

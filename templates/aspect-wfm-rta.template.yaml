@@ -8,10 +8,12 @@ Metadata:
         default: Aspect WFM Configuration
       Parameters:
         - NumSQSQueues
+        - LambdaConfigLocation
     - Label:
         default: Amazon Connect Configuration
       Parameters:
         - AgentEventStreamArn
+        - AgentEventStreamKmsArn
         - AHGFilterLevel
         - AHGFilterSeparator
         - AHGFilterValues
@@ -24,8 +26,12 @@ Metadata:
     ParameterLabels:
       NumSQSQueues:
         default: Number of SQS Queues
+      LambdaConfigLocation:
+        default: Write to SQS Flag Location
       AgentEventStreamArn:
         default: Agent Event Kinesis Stream ARN
+      AgentEventStreamKmsArn:
+        default: Agent Event Kinesis Stream KMS Key ARN
       AHGFilterLevel:
         default: Agent Hierarchy Group Level
       AHGFilterSeparator:
@@ -46,9 +52,28 @@ Parameters:
     MinValue: 1
     MaxValue: 10
     ConstraintDescription: Must be a number between 1 and 10.
+  LambdaConfigLocation:
+    Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
+      SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
+      to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires 
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer 
+      permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
+      default, this flag will be stored in an environment variable of the RTA Lambda.
+    Type: String
+    Default: env
+    AllowedValues:
+      - env
+      - tab
   AgentEventStreamArn:
     Type: String
     Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream to which Amazon Connect delivers Agent Events.
+  AgentEventStreamKmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      agent events. You should supply this ARN if you configured your Agent Event Kinesis
+      stream to use server-side encryption with a customer-managed customer master key (CMK). 
+      Otherwise, you should leave this parameter blank.
   AHGFilterLevel:
     Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
       Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
@@ -96,6 +121,7 @@ Parameters:
     Type: String
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  HasKinesisKmsKey: !Not [!Equals [!Ref AgentEventStreamKmsArn, '']]
   CreateSqsQ2: !Not [!Equals [1, !Ref NumSQSQueues]]
   CreateSqsQ3: !And
   - !Not [!Equals [1, !Ref NumSQSQueues]]
@@ -128,6 +154,8 @@ Conditions:
   - !Equals [9, !Ref NumSQSQueues]
   - !Equals [10, !Ref NumSQSQueues]
   CreateSqsQ10: !Equals [10, !Ref NumSQSQueues]
+  FlagInEnv: !Equals ["env", !Ref LambdaConfigLocation]
+  FlagInTable: !Equals ["tab", !Ref LambdaConfigLocation]
 Resources:
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
@@ -228,7 +256,7 @@ Resources:
               finally:
                   timer.cancel()
                   cfnresponse.send(event, context, status, {}, None)
-  DynamoDbCloudTest:
+  DynamoDbAgentEvent:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
@@ -237,9 +265,18 @@ Resources:
       KeySchema:
         - AttributeName: "AgentARN"
           KeyType: "HASH"
-      ProvisionedThroughput:
-        ReadCapacityUnits: 3
-        WriteCapacityUnits: 1
+      BillingMode: "PAY_PER_REQUEST"
+  DynamoDbConfig:
+    Condition: FlagInTable
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "Setting"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "Setting"
+          KeyType: "HASH"
+      BillingMode: "PAY_PER_REQUEST"
   SqsQ:
     Type: AWS::SQS::Queue
     Properties:
@@ -349,11 +386,8 @@ Resources:
       MessageRetentionPeriod: 345600
       ReceiveMessageWaitTimeSeconds: 0
       VisibilityTimeout: 30
-  LambdaRoleCloudTest:
+  LambdaRole:
     Type: AWS::IAM::Role
-    DependsOn:
-    - DynamoDbCloudTest
-    - SqsQ
     Properties:
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -364,50 +398,88 @@ Resources:
           Action: sts:AssumeRole
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
-      Policies:
-      - PolicyName: ListReadWriteAccessToAspectConnectEventsForWfmRTListenQueue
-        PolicyDocument:
-         Version: '2012-10-17'
-         Statement:
-         - Sid: VisualEditor0
-           Effect: Allow
-           Action:
-           - sqs:GetQueueUrl
-           - sqs:SendMessage
-           Resource: 
-             - Fn::GetAtt: SqsQ.Arn
-             - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
-             - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
-         - Sid: VisualEditor1
-           Effect: Allow
-           Action: 
-           - sqs:ListQueues
-           Resource: "*"
-      - PolicyName: ReadWriteAccessToAspectConnectEventsForWfmRTListenTable
-        PolicyDocument:
-         Version: '2012-10-17'
-         Statement:
-         - Sid: VisualEditor0
-           Effect: Allow
-           Action:
-           - dynamodb:BatchGetItem
-           - dynamodb:BatchWriteItem
-           - dynamodb:PutItem
-           - dynamodb:DescribeTable
-           - dynamodb:GetItem
-           - dynamodb:Scan
-           - dynamodb:Query
-           - dynamodb:UpdateItem
-           Resource: 
-             - Fn::GetAtt: DynamoDbCloudTest.Arn
-  LambdaFunctionCloudTest:
+  LambdaWriteSqsPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - SqsQ
+    Properties:
+      PolicyName: Lambda_WriteSqsPolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+       Version: '2012-10-17'
+       Statement:
+       - Effect: Allow
+         Action:
+         - sqs:SendMessage
+         Resource: 
+         - Fn::GetAtt: SqsQ.Arn
+         - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
+  LambdaReadWriteAgentEventTablePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbAgentEvent
+    Properties:
+      PolicyName: Lambda_ReadWriteAgentEventTablePolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:UpdateItem
+          Resource: 
+          - Fn::GetAtt: DynamoDbAgentEvent.Arn
+  LambdaReadConfigTablePolicy:
+    Condition: FlagInTable
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbConfig
+    Properties:
+      PolicyName: Lambda_ReadConfigTablePolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:GetItem
+          - dynamodb:Query
+          Resource: 
+          - Fn::GetAtt: DynamoDbConfig.Arn
+  LambdaDecryptKinesisPolicy:
+    Condition: HasKinesisKmsKey
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: Lambda_DecryptKinesisPolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          - kms:GenerateDataKey
+          Resource: 
+          - !Ref AgentEventStreamKmsArn
+  LambdaFunction:
     Type: AWS::Lambda::Function
     DependsOn:
     - CopyZips
@@ -421,10 +493,10 @@ Resources:
       Description: Send agent events to SQS Queue and update initial set in DynamoDB Table
       MemorySize: 256
       Timeout: 30
-      Role: !GetAtt LambdaRoleCloudTest.Arn
+      Role: !GetAtt LambdaRole.Arn
       Environment:
         Variables:
-          DynamoDbTableName: !Ref DynamoDbCloudTest
+          DynamoDbTableName: !Ref DynamoDbAgentEvent
           LogLevel: Debug
           SqsQueueMessageGroupId: AspectConnectEventsForWfmRTListen_GroupId
           NumSqsQueues: !Ref NumSQSQueues
@@ -441,62 +513,107 @@ Resources:
           AhgFilterLevel: !Ref AHGFilterLevel
           AhgFilterSeparator: !Ref AHGFilterSeparator
           AhgFilterValues: !Ref AHGFilterValues
+          ConfigTableName: !If [FlagInTable, !Ref DynamoDbConfig, !Ref "AWS::NoValue"]
           WriteEventsToQueue: 'False'
-  LambdaKinesisStreamCloudTest:
-   Type: AWS::Lambda::EventSourceMapping
-   Properties: 
-    EventSourceArn:
-      Ref: AgentEventStreamArn
-    FunctionName: !Ref LambdaFunctionCloudTest
-    StartingPosition: TRIM_HORIZON
-  UserCloudTest:
+  LambdaKinesisStream:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties: 
+      EventSourceArn:
+        Ref: AgentEventStreamArn
+      FunctionName: !Ref LambdaFunction
+      StartingPosition: TRIM_HORIZON
+  RtaUser:
     Type: AWS::IAM::User
-  PolicyCloudTest:
-   Type: AWS::IAM::Policy
-   DependsOn:
-   - DynamoDbCloudTest
-   - SqsQ
-   - LambdaFunctionCloudTest
-   Properties:  
-     PolicyName: AspectConnectEventsForWfmRTListen_QueueDrainerPolicy 
-     Users:
-     - !Ref UserCloudTest
-     PolicyDocument:
-       Version: '2012-10-17'
-       Statement:
-       - Sid: VisualEditor0
-         Effect: Allow
-         Action:
-         - sqs:DeleteMessage
-         - sqs:GetQueueUrl
-         - dynamodb:DescribeTable
-         - sqs:PurgeQueue
-         - sqs:ReceiveMessage
-         - dynamodb:Scan
-         - lambda:GetFunctionConfiguration
-         - lambda:UpdateFunctionConfiguration
-         - dynamodb:GetItem
-         Resource:
-         - Fn::GetAtt: DynamoDbCloudTest.Arn
-         - Fn::GetAtt: SqsQ.Arn
-         - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
-         - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
-         - Fn::GetAtt: LambdaFunctionCloudTest.Arn
-       - Sid: VisualEditor1
-         Effect: Allow
-         Action:
-         - sqs:ListQueues
-         Resource: "*"
+  RtaReadAgentEventTablePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbAgentEvent
+    Properties:
+      PolicyName: RTA_ReadAgentEventTablePolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:GetItem
+          - dynamodb:Scan
+          Resource:
+          - Fn::GetAtt: DynamoDbAgentEvent.Arn
+  RtaReadWriteConfigTablePolicy:
+    Condition: FlagInTable
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbConfig
+    Properties:
+      PolicyName: RTA_ReadWriteConfigTablePolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:UpdateItem
+          Resource:
+          - Fn::GetAtt: DynamoDbConfig.Arn
+  RtaReadWriteQueuePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - SqsQ
+    Properties: 
+      PolicyName: RTA_ReadWriteSqsPolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - sqs:DeleteMessage
+          - sqs:GetQueueUrl
+          - sqs:PurgeQueue
+          - sqs:ReceiveMessage
+          Resource:
+          - Fn::GetAtt: SqsQ.Arn
+          - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
+  RtaReadWriteLambdaConfigPolicy:
+    Condition: FlagInEnv
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - LambdaFunction
+    Properties:  
+      PolicyName: RTA_ReadWriteLambdaConfigurationPolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - lambda:GetFunctionConfiguration
+          - lambda:UpdateFunctionConfiguration
+          Resource:
+          - Fn::GetAtt: LambdaFunction.Arn
 Outputs:
   DynamoDbTableName:
-    Value: !Ref DynamoDbCloudTest
+    Value: !Ref DynamoDbAgentEvent
+  ConfigTableName:
+    Value: !If [FlagInTable, !Ref DynamoDbConfig, ""]
   SqsQueueUrl1:
     Value: !Ref SqsQ
   SqsQueueUrl2:
@@ -518,7 +635,7 @@ Outputs:
   SqsQueueUrl10:
     Value: !If [CreateSqsQ10, !Ref SqsQ10, ""]
   LambdaFunctionName:
-    Value: !Ref LambdaFunctionCloudTest
+    Value: !Ref LambdaFunction
   RTAUserName:
-    Value: !Ref UserCloudTest
+    Value: !Ref RtaUser
 ...

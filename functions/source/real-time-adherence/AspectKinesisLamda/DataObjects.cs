@@ -15,6 +15,13 @@ namespace AspectKinesisLamda
         public string RawAgentEventJSon { get; set; } 
     }
 
+    public class ConfigRecord
+    {
+        [DynamoDBHashKey]
+        public string Setting { get; set; }
+        public string Value { get; set; }
+    }
+
     public class EventRecordData
     {
         public string AgentARN { get; set; }
