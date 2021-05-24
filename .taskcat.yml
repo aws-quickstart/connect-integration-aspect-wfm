@@ -11,6 +11,7 @@ project:
 tests:
   default:
     parameters:
+      KdaApplicationName: tcat-$[taskcat_random-string]
       ConnectS3Bucket: tcat-$[taskcat_random-string]
       ConnectS3Prefix: tcat-$[taskcat_random-string]/
       ConnectS3KmsArn: ''
