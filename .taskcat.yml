@@ -10,11 +10,16 @@ project:
   s3_bucket: ''
 tests:
   default:
-    parameters: {}
+    parameters:
+      ConnectS3Bucket: tcat-$[taskcat_random-string]
+      ConnectS3Prefix: tcat-$[taskcat_random-string]/
+      ConnectS3KmsArn: ''
+      QSS3BucketName: $[taskcat_autobucket]
+      QSS3BucketRegion: $[taskcat_current_region]
     regions:
     - us-east-1
     - us-west-2
     - eu-central-1
     - ap-southeast-2
     s3_bucket: ''
-    template: templates/aspect-wfm-ap-kda.template.yaml
+    template: templates/aspect-wfm-ap-kda-create-stream.template.yaml
