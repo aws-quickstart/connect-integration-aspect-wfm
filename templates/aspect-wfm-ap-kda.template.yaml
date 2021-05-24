@@ -15,7 +15,9 @@ Metadata:
       Parameters:
       - ConnectS3Bucket
       - ConnectS3Prefix
+      - ConnectS3KmsArn
       - AgentEventStreamArn
+      - AgentEventStreamKmsArn
     - Label:
         default: AWS Quick Start configuration
       Parameters:      
@@ -31,8 +33,12 @@ Metadata:
         default: Amazon Connect Exported Reports Bucket
       ConnectS3Prefix:
         default: Amazon Connect Exported Reports Prefix
+      ConnectS3KmsArn:
+        default: Amazon Connect Exported Reports Bucket KMS Key ARN
       AgentEventStreamArn:
         default: Agent Event Kinesis Stream ARN
+      AgentEventStreamKmsArn:
+        default: Agent Event Kinesis Stream KMS Key ARN
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3BucketRegion:
@@ -72,10 +78,23 @@ Parameters:
     Default: connect/directory/Reports/Aspect/
     Description: Enter the prefix under which the exported reports read by WFM Adapter
       will be exported, in the Exported reports bucket of your Amazon Connect instance.
+  ConnectS3KmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      the exported reports of your Amazon Connect instance. You should supply this ARN
+      if you configured your exported reports bucket to use server-side encryption with a 
+      customer-managed customer master key (CMK). Otherwise, you should leave this parameter 
+      blank.
   AgentEventStreamArn:
     Type: String
     Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream 
       to which Amazon Connect delivers Agent Events.
+  AgentEventStreamKmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      agent events. You should supply this ARN if you configured your Agent Event Kinesis
+      stream to use server-side encryption with a customer-managed customer master key (CMK). 
+      Otherwise, you should leave this parameter blank.
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase
@@ -111,6 +130,8 @@ Rules:
         Connect instance.
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  HasS3KmsKey: !Not [!Equals [!Ref ConnectS3KmsArn, '']]
+  HasKinesisKmsKey: !Not [!Equals [!Ref AgentEventStreamKmsArn, '']]
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -224,23 +245,26 @@ Resources:
         \  \"AHGLevel2\" varchar(256),\n  \"AHGLevel3\" varchar(256),\n  \"AHGLevel4\"\
         \ varchar(256),\n  \"AHGLevel5\" varchar(256),\n  \"EventTimestamp\" timestamp,\n\
         \  \"StateName\" varchar(256),\n  \"ContactState\" varchar(256),\n  \"StateType\"\
-        \ char(1));\n\nCREATE OR REPLACE STREAM \"TEMP_SQL_STREAM\"\n  (\"AWSAccountId\"\
+        \ char(1),\n  \"RoutingProfile\" varchar(256));\n\n\
+        \ CREATE OR REPLACE STREAM \"TEMP_SQL_STREAM\"\n  (\"AWSAccountId\"\
         \ char(12),\n  \"Username\" varchar(256),\n  \"AHGLevel1\" varchar(256),\n\
         \  \"AHGLevel2\" varchar(256),\n  \"AHGLevel3\" varchar(256),\n  \"AHGLevel4\"\
         \ varchar(256),\n  \"AHGLevel5\" varchar(256),\n  \"EventTimestamp\" timestamp,\n\
         \  \"StateName\" varchar(256),\n  \"ContactState\" varchar(256),\n  \"StateType\"\
-        \ char(1));\n\nCREATE OR REPLACE PUMP \"TEMP_PUMP\" AS\n   INSERT INTO TEMP_SQL_STREAM\n\
+        \ char(1),\n  \"RoutingProfile\" varchar(256));\n\n\
+        CREATE OR REPLACE PUMP \"TEMP_PUMP\" AS\n   INSERT INTO TEMP_SQL_STREAM\n\
         \       SELECT STREAM a.\"AWSAccountId\", a.\"casUsername\", a.\"casAhgL1Name\"\
         , a.\"casAhgL2Name\", a.\"casAhgL3Name\", a.\"casAhgL4Name\", a.\"casAhgL5Name\"\
         , a.\"EventTimestamp\", a.\"casStateName\", a.\"casContactState\", b.\"StateType\"\
-        \n       FROM SOURCE_SQL_STREAM_001 AS a\n       LEFT OUTER JOIN AGENT_STATUS_INFO\
+        , a.\"casRoutingProfileName\"\n\
+        FROM SOURCE_SQL_STREAM_001 AS a\nLEFT OUTER JOIN AGENT_STATUS_INFO\
         \ AS b\n       ON a.\"casStateName\" = b.\"StateName\"\n       WHERE a.\"\
         casUsername\" IS NOT NULL;\n\nCREATE OR REPLACE PUMP \"STREAM_PUMP\" AS\n\
         \   INSERT INTO DESTINATION_SQL_STREAM\n      SELECT STREAM \"AWSAccountId\"\
         , \"Username\", \"AHGLevel1\", \"AHGLevel2\", \"AHGLevel3\", \"AHGLevel4\"\
         , \"AHGLevel5\", \"EventTimestamp\", \"StateName\", \"ContactState\", COALESCE(\"\
-        StateType\", '1')\n      FROM TEMP_SQL_STREAM\n      WINDOW W1 AS (PARTITION\
-        \ BY \"AWSAccountId\" RANGE INTERVAL '15' MINUTE PRECEDING);    \n"
+        StateType\", '1'), \"RoutingProfile\"\n      FROM TEMP_SQL_STREAM\n\
+        \ WINDOW W1 AS (PARTITION BY \"AWSAccountId\" RANGE INTERVAL '15' MINUTE PRECEDING);    \n"
       Inputs:
       - NamePrefix: "SOURCE_SQL_STREAM"
         InputSchema:
@@ -266,6 +290,9 @@ Resources:
           - Name: "casAhgL5Name"
             SqlType: "VARCHAR(256)"
             Mapping: "$.CurrentAgentSnapshot.Configuration.AgentHierarchyGroups.Level5.Name"
+          - Name: "casRoutingProfileName"
+            SqlType: "VARCHAR(256)"
+            Mapping: "$.CurrentAgentSnapshot.Configuration.RoutingProfile.Name"
           - Name: "casUsername"
             SqlType: "VARCHAR(256)"
             Mapping: "$.CurrentAgentSnapshot.Configuration.Username"
@@ -313,43 +340,74 @@ Resources:
             Service: kinesisanalytics.amazonaws.com
           Action: sts:AssumeRole
       Path: /service-role/
-      Policies:
-      - PolicyName: ReadInputKinesis
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - kinesis:DescribeStream
-            - kinesis:GetShardIterator
-            - kinesis:GetRecords
-            Resource:
-            - Ref: AgentEventStreamArn
-          - Effect: Allow
-            Action:
-            - kinesis:ListStreams
-            Resource: '*'
-      - PolicyName: ReadInputS3
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - s3:GetObject
-            Resource:
-            - Fn::GetAtt: S3Bucket.Arn
-            - Fn::Sub: ${S3Bucket.Arn}/*
-      - PolicyName: WriteOutputFirehose
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - firehose:DescribeDeliveryStream
-            - firehose:PutRecord
-            - firehose:PutRecordBatch
-            Resource:
-            - Fn::Sub: arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${OutputKinesisFirehose}
+  KinesisAnalyticsAppReadInputKinesisPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KDA_ReadInputKinesis
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kinesis:DescribeStream
+          - kinesis:GetShardIterator
+          - kinesis:GetRecords
+          Resource:
+          - Ref: AgentEventStreamArn
+        - Effect: Allow
+          Action:
+          - kinesis:ListStreams
+          Resource: '*'
+  KinesisAnalyticsAppReadInputS3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KDA_ReadInputS3
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          Resource:
+          - Fn::GetAtt: S3Bucket.Arn
+          - Fn::Sub: ${S3Bucket.Arn}/*
+  KinesisAnalyticsAppWriteOutputFirehosePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KDA_WriteOutputFirehose
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - firehose:DescribeDeliveryStream
+          - firehose:PutRecord
+          - firehose:PutRecordBatch
+          Resource:
+          - Fn::Sub: arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${OutputKinesisFirehose}
+  KinesisAnalyticsAppKinesisKmsDecryptPolicy:
+    Condition: HasKinesisKmsKey
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: KDA_KinesisKmsDecrypt
+      Roles:
+      - !Ref KinesisAnalyticsAppRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:GenerateDataKey
+          - kms:DescribeKey
+          Resource:
+          - !Ref AgentEventStreamKmsArn
   FirehoseRole:
     Type: AWS::IAM::Role
     Properties:
@@ -562,20 +620,43 @@ Resources:
       Path: /
       UserName:
         Fn::Sub: WFMAdapter-${KdaApplicationName}
-      Policies:
-      - PolicyName: s3ReadOnlyAccess
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action:
-            - s3:GetObject
-            - s3:ListBucket
-            Resource:
-            - Fn::GetAtt: S3Bucket.Arn
-            - Fn::Sub: ${S3Bucket.Arn}/${AspectApDataS3Prefix}*
-            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}
-            - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}/${ConnectS3Prefix}*
+  WFMAdapterReadS3Policy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - S3Bucket
+    Properties:
+      PolicyName: WFMAdapter_ReadS3Policy
+      Users:
+      - !Ref WFMAdapterUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          - s3:ListBucket
+          Resource:
+          - Fn::GetAtt: S3Bucket.Arn
+          - Fn::Sub: ${S3Bucket.Arn}/${AspectApDataS3Prefix}*
+          - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}
+          - Fn::Sub: arn:${AWS::Partition}:s3:::${ConnectS3Bucket}/${ConnectS3Prefix}*
+  WFMAdapterDecryptS3Policy:
+    Condition: HasS3KmsKey
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: WFMAdapter_DecryptS3Policy
+      Users:
+      - !Ref WFMAdapterUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:GenerateDataKey
+          - kms:DescribeKey
+          Resource:
+          - !Ref ConnectS3KmsArn
 Outputs:
   APS3BucketName:
     Value: !Ref S3Bucket

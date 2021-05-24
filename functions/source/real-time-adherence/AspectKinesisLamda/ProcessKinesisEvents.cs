@@ -21,14 +21,17 @@ namespace AspectKinesisLamda
     {
         private const string HEARTBEAT_EVENTTYPE = "HEART_BEAT";
         private const string DYNAMODB_TABLE_NAME_ENVIRONMENT_VARIABLE_LOOKUP = "DynamoDbTableName";
+        private const string CONFIG_TABLE_NAME_ENVIRONMENT_VARIABLE_LOOKUP = "ConfigTableName";
         private const string WRITE_EVENTS_TO_QUEUE_ENVIRONMENT_VARIABLE_LOOKUP = "WriteEventsToQueue";
         private const string AHG_FILTER_LEVEL_ENVIRONMENT_VARIABLE_LOOKUP = "AhgFilterLevel";
         private const string AHG_FILTER_SEPARATOR_ENVIRONMENT_VARIABLE_LOOKUP = "AhgFilterSeparator";
         private const string AHG_FILTER_VALUES_ENVIRONMENT_VARIABLE_LOOKUP = "AhgFilterValues";
-        private readonly IDynamoDBContext _ddbContext;
+        private readonly IDynamoDBContext _aeDbContext;
+        private readonly IDynamoDBContext _cfgDbContext;
         private IAwsSqsFacade _sqsFacade;
         private IAspectLogger _logger;
         private readonly string _dynamoDbTableName;
+        private readonly string _configTableName;
         private readonly int _ahgFilterLevel;
         private readonly char _ahgFilterSeparator;
         private readonly SortedSet<string> _ahgFilterValues;
@@ -38,9 +41,10 @@ namespace AspectKinesisLamda
         private const int AHG_FILTER_LEVEL_DISABLED = 0;
 
         //NOTE: Used by Unit Tests
-        public ProcessKinesisEvents(IDynamoDBContext ddbContext, IAwsSqsFacade sqsFacade)
+        public ProcessKinesisEvents(IDynamoDBContext aeDbContext, IDynamoDBContext cfgDbContext, IAwsSqsFacade sqsFacade)
         {
-            _ddbContext = ddbContext;
+            _aeDbContext = aeDbContext;
+            _cfgDbContext = cfgDbContext;
             _sqsFacade = sqsFacade;
             _ahgFilterLevel = 0;
         }
@@ -54,8 +58,18 @@ namespace AspectKinesisLamda
             }
             _dynamoDbTableName = _dynamoDbTableName.Trim();
             AWSConfigsDynamoDB.Context.TypeMappings[typeof(ConnectKinesisEventRecord)] = new Amazon.Util.TypeMapping(typeof(ConnectKinesisEventRecord), _dynamoDbTableName);
-            var config = new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 };
-            _ddbContext = new DynamoDBContext(new AmazonDynamoDBClient(), config);
+            var aeConfig = new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 };
+            _aeDbContext = new DynamoDBContext(new AmazonDynamoDBClient(), aeConfig);
+            _configTableName = Environment.GetEnvironmentVariable(CONFIG_TABLE_NAME_ENVIRONMENT_VARIABLE_LOOKUP);
+            if (!string.IsNullOrEmpty(_configTableName))
+            {
+                _configTableName = _configTableName.Trim();
+                AWSConfigsDynamoDB.Context.TypeMappings[typeof(ConfigRecord)] = new Amazon.Util.TypeMapping(typeof(ConfigRecord), _configTableName);
+                var cfgConfig = new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 };
+                _cfgDbContext = new DynamoDBContext(new AmazonDynamoDBClient(), cfgConfig);
+            }
+            else
+                _cfgDbContext = null;
             var level = Environment.GetEnvironmentVariable(AHG_FILTER_LEVEL_ENVIRONMENT_VARIABLE_LOOKUP);
             if (string.IsNullOrEmpty(level))
             {
@@ -97,7 +111,7 @@ namespace AspectKinesisLamda
 
             _logger.Info($"Record Count: {kinesisEvent.Records.Count}");
 
-            bool writeEventsToQueue = Convert.ToBoolean(Environment.GetEnvironmentVariable(WRITE_EVENTS_TO_QUEUE_ENVIRONMENT_VARIABLE_LOOKUP));
+            var writeEventsToQueue = await ReadWriteEventsToQueueFlag();
             _logger.Debug($"WriteEventsToQueue: {writeEventsToQueue}");
 
             foreach (var record in kinesisEvent.Records)
@@ -106,6 +120,33 @@ namespace AspectKinesisLamda
             }
 
             _logger.Trace("Ending AspectKinesisHandler");
+        }
+
+        private async Task<bool> ReadWriteEventsToQueueFlag()
+        {
+            _logger.Trace("Beginning ReadWriteEventsToQueueFlag");
+            string flagStr = null;
+            if (_cfgDbContext == null)
+            {
+                flagStr = Environment.GetEnvironmentVariable(WRITE_EVENTS_TO_QUEUE_ENVIRONMENT_VARIABLE_LOOKUP);
+                _logger.Debug($"Read environment variable: {flagStr}");
+            }
+            else
+            {
+                var dynamoRecord = await _cfgDbContext.LoadAsync<ConfigRecord>(WRITE_EVENTS_TO_QUEUE_ENVIRONMENT_VARIABLE_LOOKUP);
+                flagStr = dynamoRecord?.Value;
+                _logger.Debug($"Read config table: {flagStr}");
+                if (string.IsNullOrEmpty(flagStr))
+                {
+                    _logger.Debug("Config table row is missing, defaulting flag to false.");
+                    flagStr = false.ToString();
+                }
+            }
+
+            var flagValue = Convert.ToBoolean(flagStr);
+
+            _logger.Trace("Ending ReadWriteEventsToQueueFlag");
+            return flagValue;
         }
 
         private bool MatchLevel(string name)
@@ -272,10 +313,10 @@ namespace AspectKinesisLamda
         {
             _logger.Trace("Beginning ProcessEventsToDynamoTable");
 
-            var dynamoRecord = await _ddbContext.LoadAsync<ConnectKinesisEventRecord>(streamRecord.AgentARN);
+            var dynamoRecord = await _aeDbContext.LoadAsync<ConnectKinesisEventRecord>(streamRecord.AgentARN);
             if (dynamoRecord == null || streamRecord.LastEventTimeStamp >= dynamoRecord.LastEventTimeStamp)
             {
-                await _ddbContext.SaveAsync(streamRecord); 
+                await _aeDbContext.SaveAsync(streamRecord); 
             }
             else 
             {

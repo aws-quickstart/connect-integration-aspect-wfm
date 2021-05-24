@@ -9,6 +9,7 @@ Metadata:
           default: Aspect WFM Configuration
         Parameters:
           - NumSQSQueues
+          - LambdaConfigLocation
       - Label:
           default: Amazon Connect Configuration
         Parameters:
@@ -24,6 +25,8 @@ Metadata:
     ParameterLabels:
       NumSQSQueues:
         default: Number of SQS Queues
+      LambdaConfigLocation:
+        default: Write to SQS Flag Location
       AHGFilterLevel:
         default: Agent Hierarchy Group Level
       AHGFilterSeparator:
@@ -44,6 +47,19 @@ Parameters:
     MinValue: 1
     MaxValue: 10
     ConstraintDescription: Must be a number between 1 and 10.
+  LambdaConfigLocation:
+    Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
+      SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
+      to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires 
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer 
+      permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
+      default, this flag will be stored in an environment variable of the RTA Lambda.
+    Type: String
+    Default: env
+    AllowedValues:
+      - env
+      - tab
   AHGFilterLevel:
     Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
       Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
@@ -124,6 +140,7 @@ Resources:
             ]
       Parameters:
         NumSQSQueues: !Ref NumSQSQueues
+        LambdaConfigLocation: !Ref LambdaConfigLocation
         AHGFilterLevel: !Ref AHGFilterLevel
         AHGFilterSeparator: !Ref AHGFilterSeparator
         AHGFilterValues: !Ref AHGFilterValues
@@ -134,6 +151,7 @@ Resources:
           Fn::GetAtt:
             - CreateStreamStack
             - Outputs.KinesisStreamArn
+        AgentEventStreamKmsArn: ''
 Outputs:
   AgentEventStreamArn:
     Value:
@@ -145,6 +163,11 @@ Outputs:
       Fn::GetAtt:
         - WorkloadStack
         - Outputs.DynamoDbTableName
+  ConfigTableName:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.ConfigTableName
   SqsQueueUrl1:
     Value:
       Fn::GetAtt:
