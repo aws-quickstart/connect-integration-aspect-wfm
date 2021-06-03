@@ -182,7 +182,7 @@ Resources:
     Properties:
       Description: Copies objects from a source S3 bucket to a destination
       Handler: index.handler
-      Runtime: python2.7
+      Runtime: python3.8
       Role: !GetAtt 'CopyZipsRole.Arn'
       Timeout: 240
       Code:
@@ -585,7 +585,7 @@ Resources:
           kda_application_name:
             Ref: KinesisDataAnalyticsApplication
       Handler: update.lambda_handler
-      Runtime: python3.6
+      Runtime: python3.8
       Role:
         Fn::GetAtt: LambdaRole.Arn
   LambdaVersion:
