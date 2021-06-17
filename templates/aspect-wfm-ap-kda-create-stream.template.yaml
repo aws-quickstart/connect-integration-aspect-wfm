@@ -1,7 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Aspect WFM Agent Productivity Report Generator integration with
-  associated Kinesis stream
+Description: Aspect WFM Agent Productivity Report Generator integration with associated Kinesis stream (qs-1s0or52mm)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -29,8 +28,6 @@ Metadata:
         default: Aspect WFM Report Prefix
       ConnectS3Bucket:
         default: Amazon Connect Exported Reports Bucket
-      ConnectS3Region:
-        default: Amazon Connect Exported Reports bucket region
       ConnectS3Prefix:
         default: Amazon Connect Exported Reports Prefix
       ConnectS3KmsArn:
@@ -77,8 +74,8 @@ Parameters:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
       the exported reports of your Amazon Connect instance. You should supply this ARN
-      if you configured your exported reports bucket to use server-side encryption with a 
-      customer-managed customer master key (CMK). Otherwise, you should leave this parameter 
+      if you configured your exported reports bucket to use server-side encryption with a
+      customer-managed customer master key (CMK). Otherwise, you should leave this parameter
       blank.
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$

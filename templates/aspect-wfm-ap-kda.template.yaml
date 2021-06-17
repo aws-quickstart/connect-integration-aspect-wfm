@@ -20,7 +20,7 @@ Metadata:
       - AgentEventStreamKmsArn
     - Label:
         default: AWS Quick Start configuration
-      Parameters:      
+      Parameters:
         - QSS3BucketName
         - QSS3BucketRegion
         - QSS3KeyPrefix
@@ -82,18 +82,18 @@ Parameters:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
       the exported reports of your Amazon Connect instance. You should supply this ARN
-      if you configured your exported reports bucket to use server-side encryption with a 
-      customer-managed customer master key (CMK). Otherwise, you should leave this parameter 
+      if you configured your exported reports bucket to use server-side encryption with a
+      customer-managed customer master key (CMK). Otherwise, you should leave this parameter
       blank.
   AgentEventStreamArn:
     Type: String
-    Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream 
+    Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream
       to which Amazon Connect delivers Agent Events.
   AgentEventStreamKmsArn:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
       agent events. You should supply this ARN if you configured your Agent Event Kinesis
-      stream to use server-side encryption with a customer-managed customer master key (CMK). 
+      stream to use server-side encryption with a customer-managed customer master key (CMK).
       Otherwise, you should leave this parameter blank.
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
@@ -136,105 +136,20 @@ Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
-  LambdaZipsBucket:
-    Type: AWS::S3::Bucket
-  CopyZips:
-    Type: Custom::CopyZips
+  CopyZipsTemplate:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
-      DestBucket: !Ref 'LambdaZipsBucket'
-      SourceBucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-      Prefix: !Ref 'QSS3KeyPrefix'
-      Objects:
-        - functions/packages/agent-productivity/lambda.zip
-  CopyZipsRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Path: /
-      Policies:
-        - PolicyName: lambda-copier
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource: !Sub
-                  - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
-                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:DeleteObject
-                Resource:
-                  - !Sub 'arn:${AWS::Partition}:s3:::${LambdaZipsBucket}/${QSS3KeyPrefix}*'
-  CopyZipsFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Description: Copies objects from a source S3 bucket to a destination
-      Handler: index.handler
-      Runtime: python2.7
-      Role: !GetAtt 'CopyZipsRole.Arn'
-      Timeout: 240
-      Code:
-        ZipFile: |
-          import json
-          import logging
-          import threading
-          import boto3
-          import cfnresponse
-          def copy_objects(source_bucket, dest_bucket, prefix, objects):
-              s3 = boto3.client('s3')
-              for o in objects:
-                  key = prefix + o
-                  copy_source = {
-                      'Bucket': source_bucket,
-                      'Key': key
-                  }
-                  print('copy_source: %s' % copy_source)
-                  print('dest_bucket = %s'%dest_bucket)
-                  print('key = %s' %key)
-                  s3.copy_object(CopySource=copy_source, Bucket=dest_bucket,
-                        Key=key)
-          def delete_objects(bucket, prefix, objects):
-              s3 = boto3.client('s3')
-              objects = {'Objects': [{'Key': prefix + o} for o in objects]}
-              s3.delete_objects(Bucket=bucket, Delete=objects)
-          def timeout(event, context):
-              logging.error('Execution is about to time out, sending failure response to CloudFormation')
-              cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
-          def handler(event, context):
-              # make sure we send a failure to CloudFormation if the function
-              # is going to timeout
-              timer = threading.Timer((context.get_remaining_time_in_millis()
-                        / 1000.00) - 0.5, timeout, args=[event, context])
-              timer.start()
-              print('Received event: %s' % json.dumps(event))
-              status = cfnresponse.SUCCESS
-              try:
-                  source_bucket = event['ResourceProperties']['SourceBucket']
-                  dest_bucket = event['ResourceProperties']['DestBucket']
-                  prefix = event['ResourceProperties']['Prefix']
-                  objects = event['ResourceProperties']['Objects']
-                  if event['RequestType'] == 'Delete':
-                      delete_objects(dest_bucket, prefix, objects)
-                  else:
-                      copy_objects(source_bucket, dest_bucket, prefix, objects)
-              except Exception as e:
-                  logging.error('Exception: %s' % e, exc_info=True)
-                  status = cfnresponse.FAILED
-              finally:
-                  timer.cancel()
-                  cfnresponse.send(event, context, status, {}, None)
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/lambda-copyzips/templates/copy-zips.template.yaml'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        SourceObjects:
+          - functions/packages/agent-productivity/lambda.zip
   KinesisDataAnalyticsApplication:
     Type: AWS::KinesisAnalytics::Application
     Properties:
@@ -328,7 +243,7 @@ Resources:
           Action: sts:AssumeRole
       Path: /
       ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      - !Sub arn:${AWS::Partition}:iam::aws:policy/AmazonS3ReadOnlyAccess
   KinesisAnalyticsAppRole:
     Type: AWS::IAM::Role
     Properties:
@@ -390,7 +305,7 @@ Resources:
           - firehose:PutRecord
           - firehose:PutRecordBatch
           Resource:
-          - Fn::Sub: arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${OutputKinesisFirehose}
+          - Fn::Sub: arn:${AWS::Partition}:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${OutputKinesisFirehose}
   KinesisAnalyticsAppKinesisKmsDecryptPolicy:
     Condition: HasKinesisKmsKey
     Type: AWS::IAM::Policy
@@ -431,9 +346,8 @@ Resources:
         Statement:
         - Effect: Allow
           Action:
-          - glue:GetTableVersions
-          Resource:
-          - '*'
+            - glue:GetTableVersions
+          Resource: !Sub arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/*/*
       Roles:
       - Ref: FirehoseRole
   FirehoseS3Policy:
@@ -468,7 +382,7 @@ Resources:
           - logs:PutLogEvents
           - logs:CreateLogStream
           Resource:
-          - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/${OutputKinesisFirehose}:log-stream:*
+          - Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/kinesisfirehose/${OutputKinesisFirehose}:log-stream:*
       Roles:
       - Ref: FirehoseRole
   KinesisDataAnalyticsApplicationOutputs:
@@ -547,7 +461,7 @@ Resources:
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
-            Resource: arn:aws:logs:*:*:*
+            Resource: !Sub arn:${AWS::Partition}:logs:*:*:*
       - PolicyName: CheckKdaStatus
         PolicyDocument:
           Version: '2012-10-17'
@@ -556,7 +470,7 @@ Resources:
             Action:
             - kinesisanalytics:DescribeApplication
             Resource:
-            - Fn::Sub: arn:aws:kinesisanalytics:${AWS::Region}:${AWS::AccountId}:application/${KdaApplicationName}
+            - Fn::Sub: arn:${AWS::Partition}:kinesisanalytics:${AWS::Region}:${AWS::AccountId}:application/${KdaApplicationName}
       - PolicyName: WriteToFirehose
         PolicyDocument:
           Version: '2012-10-17'
@@ -569,14 +483,14 @@ Resources:
   FirehoseUpdateLambda:
     Type: AWS::Lambda::Function
     DependsOn:
-    - CopyZips
+      - CopyZipsTemplate
     Properties:
       FunctionName:
         Fn::Sub: ${KdaApplicationName}-lambda
       Description: Periodically write to Agent Productivity firehose stream to ensure
         that files are created
       Code:
-        S3Bucket: !Ref 'LambdaZipsBucket'
+        S3Bucket: !GetAtt CopyZipsTemplate.Outputs.LambdaZipsBucket
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/agent-productivity/lambda.zip'
       Environment:
         Variables:
@@ -664,4 +578,3 @@ Outputs:
     Value: !Ref KinesisDataAnalyticsApplication
   WFMAdapterUserName:
     Value: !Ref WFMAdapterUser
-...

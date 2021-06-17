@@ -1,7 +1,6 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Aspect AWS Connect RTA CloudFormation template with
-  associated Kinesis stream
+Description: Aspect AWS Connect RTA CloudFormation template with associated Kinesis stream (qs-1s0oq6h04)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -51,8 +50,8 @@ Parameters:
     Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
       SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
       to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
-      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires 
-      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer 
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer
       permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
       default, this flag will be stored in an environment variable of the RTA Lambda.
     Type: String
@@ -61,8 +60,8 @@ Parameters:
       - env
       - tab
   AHGFilterLevel:
-    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
-      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
+    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5).
+      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will
       be filtered based on that Agent Hierarchy Group Level.
     Type: Number
     Default: 0
@@ -77,7 +76,7 @@ Parameters:
     MinLength: 1
     MaxLength: 1
   AHGFilterValues:
-    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group 
+    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group
       filtering, any agent events with an Agent Hierarchy Group Level value matching one of the values listed here will
       be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
       values should be separated with the character configured in AHGFilterSeparator.

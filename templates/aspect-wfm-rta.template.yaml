@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Aspect AWS Connect Real-Time Adherence integration
+Description: Aspect AWS Connect Real-Time Adherence integration (qs-1s0oq6gud)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -45,6 +45,10 @@ Metadata:
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
 Parameters:
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Type: String
   NumSQSQueues:
     Description: The number of SQS queues to create (must be between 1 and 10). Creating additional SQS queues can reduce the latency of state changes.
     Type: Number
@@ -56,8 +60,8 @@ Parameters:
     Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
       SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
       to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
-      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires 
-      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer 
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer
       permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
       default, this flag will be stored in an environment variable of the RTA Lambda.
     Type: String
@@ -72,11 +76,11 @@ Parameters:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
       agent events. You should supply this ARN if you configured your Agent Event Kinesis
-      stream to use server-side encryption with a customer-managed customer master key (CMK). 
+      stream to use server-side encryption with a customer-managed customer master key (CMK).
       Otherwise, you should leave this parameter blank.
   AHGFilterLevel:
-    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5). 
-      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will 
+    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5).
+      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will
       be filtered based on that Agent Hierarchy Group Level.
     Type: Number
     Default: 0
@@ -91,7 +95,7 @@ Parameters:
     MinLength: 1
     MaxLength: 1
   AHGFilterValues:
-    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group 
+    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group
       filtering, any agent events with an Agent Hierarchy Group Level value matching one of the values listed here will
       be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
       values should be separated with the character configured in AHGFilterSeparator.
@@ -105,10 +109,6 @@ Parameters:
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
-    Type: String
-  QSS3BucketRegion:
-    Default: 'us-east-1'
-    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
@@ -159,103 +159,20 @@ Conditions:
 Resources:
   LambdaZipsBucket:
     Type: AWS::S3::Bucket
-  CopyZips:
-    Type: Custom::CopyZips
+  CopyZipsTemplate:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      ServiceToken: !GetAtt 'CopyZipsFunction.Arn'
-      DestBucket: !Ref 'LambdaZipsBucket'
-      SourceBucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-      Prefix: !Ref 'QSS3KeyPrefix'
-      Objects:
-        - functions/packages/real-time-adherence/AspectKinesisLambda.zip
-  CopyZipsRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Path: /
-      Policies:
-        - PolicyName: lambda-copier
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                Resource: !Sub
-                  - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
-                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                  - s3:DeleteObject
-                Resource:
-                  - !Sub 'arn:${AWS::Partition}:s3:::${LambdaZipsBucket}/${QSS3KeyPrefix}*'
-  CopyZipsFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Description: Copies objects from a source S3 bucket to a destination
-      Handler: index.handler
-      Runtime: python2.7
-      Role: !GetAtt 'CopyZipsRole.Arn'
-      Timeout: 240
-      Code:
-        ZipFile: |
-          import json
-          import logging
-          import threading
-          import boto3
-          import cfnresponse
-          def copy_objects(source_bucket, dest_bucket, prefix, objects):
-              s3 = boto3.client('s3')
-              for o in objects:
-                  key = prefix + o
-                  copy_source = {
-                      'Bucket': source_bucket,
-                      'Key': key
-                  }
-                  print('copy_source: %s' % copy_source)
-                  print('dest_bucket = %s'%dest_bucket)
-                  print('key = %s' %key)
-                  s3.copy_object(CopySource=copy_source, Bucket=dest_bucket,
-                        Key=key)
-          def delete_objects(bucket, prefix, objects):
-              s3 = boto3.client('s3')
-              objects = {'Objects': [{'Key': prefix + o} for o in objects]}
-              s3.delete_objects(Bucket=bucket, Delete=objects)
-          def timeout(event, context):
-              logging.error('Execution is about to time out, sending failure response to CloudFormation')
-              cfnresponse.send(event, context, cfnresponse.FAILED, {}, None)
-          def handler(event, context):
-              # make sure we send a failure to CloudFormation if the function
-              # is going to timeout
-              timer = threading.Timer((context.get_remaining_time_in_millis()
-                        / 1000.00) - 0.5, timeout, args=[event, context])
-              timer.start()
-              print('Received event: %s' % json.dumps(event))
-              status = cfnresponse.SUCCESS
-              try:
-                  source_bucket = event['ResourceProperties']['SourceBucket']
-                  dest_bucket = event['ResourceProperties']['DestBucket']
-                  prefix = event['ResourceProperties']['Prefix']
-                  objects = event['ResourceProperties']['Objects']
-                  if event['RequestType'] == 'Delete':
-                      delete_objects(dest_bucket, prefix, objects)
-                  else:
-                      copy_objects(source_bucket, dest_bucket, prefix, objects)
-              except Exception as e:
-                  logging.error('Exception: %s' % e, exc_info=True)
-                  status = cfnresponse.FAILED
-              finally:
-                  timer.cancel()
-                  cfnresponse.send(event, context, status, {}, None)
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/lambda-copyzips/templates/copy-zips.template.yaml'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        SourceObjects:
+          - functions/packages/real-time-adherence/AspectKinesisLambda.zip
   DynamoDbAgentEvent:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -397,7 +314,7 @@ Resources:
             Service: lambda.amazonaws.com
           Action: sts:AssumeRole
       ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole
+      - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole'
   LambdaWriteSqsPolicy:
     Type: AWS::IAM::Policy
     DependsOn:
@@ -412,7 +329,7 @@ Resources:
        - Effect: Allow
          Action:
          - sqs:SendMessage
-         Resource: 
+         Resource:
          - Fn::GetAtt: SqsQ.Arn
          - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
          - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
@@ -441,7 +358,7 @@ Resources:
           - dynamodb:GetItem
           - dynamodb:Query
           - dynamodb:UpdateItem
-          Resource: 
+          Resource:
           - Fn::GetAtt: DynamoDbAgentEvent.Arn
   LambdaReadConfigTablePolicy:
     Condition: FlagInTable
@@ -460,7 +377,7 @@ Resources:
           - dynamodb:DescribeTable
           - dynamodb:GetItem
           - dynamodb:Query
-          Resource: 
+          Resource:
           - Fn::GetAtt: DynamoDbConfig.Arn
   LambdaDecryptKinesisPolicy:
     Condition: HasKinesisKmsKey
@@ -477,18 +394,18 @@ Resources:
           - kms:Decrypt
           - kms:DescribeKey
           - kms:GenerateDataKey
-          Resource: 
+          Resource:
           - !Ref AgentEventStreamKmsArn
   LambdaFunction:
     Type: AWS::Lambda::Function
     DependsOn:
-    - CopyZips
+      - CopyZipsTemplate
     Properties:
       Handler: >-
         AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler
       Runtime: dotnetcore2.1
-      Code: 
-        S3Bucket: !Ref 'LambdaZipsBucket'
+      Code:
+        S3Bucket: !GetAtt CopyZipsTemplate.Outputs.LambdaZipsBucket
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/real-time-adherence/AspectKinesisLambda.zip'
       Description: Send agent events to SQS Queue and update initial set in DynamoDB Table
       MemorySize: 256
@@ -517,7 +434,7 @@ Resources:
           WriteEventsToQueue: 'False'
   LambdaKinesisStream:
     Type: AWS::Lambda::EventSourceMapping
-    Properties: 
+    Properties:
       EventSourceArn:
         Ref: AgentEventStreamArn
       FunctionName: !Ref LambdaFunction
@@ -567,7 +484,7 @@ Resources:
     Type: AWS::IAM::Policy
     DependsOn:
     - SqsQ
-    Properties: 
+    Properties:
       PolicyName: RTA_ReadWriteSqsPolicy
       Users:
       - !Ref RtaUser
@@ -596,7 +513,7 @@ Resources:
     Type: AWS::IAM::Policy
     DependsOn:
     - LambdaFunction
-    Properties:  
+    Properties:
       PolicyName: RTA_ReadWriteLambdaConfigurationPolicy
       Users:
       - !Ref RtaUser
