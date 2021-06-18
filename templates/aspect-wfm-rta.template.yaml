@@ -171,8 +171,7 @@ Resources:
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
-        SourceObjects:
-          - functions/packages/real-time-adherence/AspectKinesisLambda.zip
+        SourceObjects: "functions/packages/real-time-adherence/AspectKinesisLambda.zip"
   DynamoDbAgentEvent:
     Type: AWS::DynamoDB::Table
     Properties:
