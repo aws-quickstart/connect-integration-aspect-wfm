@@ -9,3 +9,4 @@ functions/source/real-time-adherence/AspectKinesisLamda/obj/*
 functions/source/real-time-adherence/AspectKinesisLamda.Tests/bin/*
 functions/source/real-time-adherence/AspectKinesisLamda.Tests/obj/*
 *.cache
+.taskcat.yml

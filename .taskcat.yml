@@ -4,10 +4,7 @@ project:
   package_lambda: false
   regions:
   - us-east-1
-  - us-west-2
-  - eu-central-1
-  - ap-southeast-2
-  s3_bucket: ''
+  s3_bucket: 'quickstart-reference-dburkhead'
 tests:
   default:
     parameters:
@@ -19,8 +16,5 @@ tests:
       QSS3BucketRegion: $[taskcat_current_region]
     regions:
     - us-east-1
-    - us-west-2
-    - eu-central-1
-    - ap-southeast-2
-    s3_bucket: ''
+    s3_bucket: 'quickstart-reference-dburkhead'
     template: templates/aspect-wfm-ap-kda-create-stream.template.yaml
