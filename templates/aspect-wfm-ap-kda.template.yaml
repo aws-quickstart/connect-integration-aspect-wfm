@@ -82,8 +82,8 @@ Parameters:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
       the exported reports of your Amazon Connect instance. You should supply this ARN
-      if you configured your exported reports bucket to use server-side encryption with a
-      customer-managed customer master key (CMK). Otherwise, you should leave this parameter
+      if you configured your exported reports bucket to use server-side encryption with an
+      AWS Key Management Service (KMS) key. Otherwise, you should leave this parameter
       blank.
   AgentEventStreamArn:
     Type: String
@@ -93,7 +93,7 @@ Parameters:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
       agent events. You should supply this ARN if you configured your Agent Event Kinesis
-      stream to use server-side encryption with a customer-managed customer master key (CMK).
+      stream to use server-side encryption with an AWS Key Management Service (KMS) key.
       Otherwise, you should leave this parameter blank.
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
