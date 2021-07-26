@@ -76,7 +76,7 @@ Parameters:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
       agent events. You should supply this ARN if you configured your Agent Event Kinesis
-      stream to use server-side encryption with a customer-managed customer master key (CMK).
+      stream to use server-side encryption with an AWS Key Management Service (KMS) key.
       Otherwise, you should leave this parameter blank.
   AHGFilterLevel:
     Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5).
@@ -402,7 +402,7 @@ Resources:
     Properties:
       Handler: >-
         AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler
-      Runtime: dotnetcore2.1
+      Runtime: dotnetcore3.1
       Code:
         S3Bucket: !GetAtt CopyZipsTemplate.Outputs.LambdaZipsBucket
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/real-time-adherence/AspectKinesisLambda.zip'

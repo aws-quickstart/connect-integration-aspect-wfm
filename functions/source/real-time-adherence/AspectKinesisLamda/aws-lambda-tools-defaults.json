@@ -1,21 +1,20 @@
-
 {
-    "Information" : [
-        "This file provides default values for the deployment wizard inside Visual Studio and the AWS Lambda commands added to the .NET Core CLI.",
-        "To learn more about the Lambda commands with the .NET Core CLI execute the following command at the command line in the project root directory.",
-        "dotnet lambda help",
-        "All the command line options for the Lambda command can be specified in this file."
-    ],
-    "profile"     : "AWS Test",
-    "region"      : "us-east-1",
-    "configuration" : "Release",
-    "framework"     : "netcoreapp2.0",
-    "function-runtime" : "dotnetcore2.0",
-    "function-memory-size" : 256,
-    "function-timeout"     : 30,
-    "function-handler"     : "AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler",
-    "function-name"        : "Test_AspectConnectEventsForWfmRTListen_Lambda",
-    "function-role"        : "arn:aws:iam::271773505756:role/Test_AspectConnectEventsForWfmRTListen_LambaRole",
-    "tracing-mode"         : "PassThrough",
-    "environment-variables" : "\"DynamoDbTableName\"=\"Test_AspectConnectEventsForWfmRTListen_Table\";\"LogLevel\"=\"Debug\";\"SqsQueueMessageGroupId\"=\"AspectConnectForWfmRTListen_GroupId\";\"SqsQueueName\"=\"Test_AspectConnectEventsForWfmRTListen_Queue.fifo\";\"SqsQueueOwner\"=\"271773505756\";\"WriteEventsToQueue\"=\"True\";\"SqsQueueUrl\"=\" https://sqs.us-east-1.amazonaws.com/271773505756/Test_AspectConnectEventsForWfmRTListen_Queue.fifo\""
+  "Information": [
+    "This file provides default values for the deployment wizard inside Visual Studio and the AWS Lambda commands added to the .NET Core CLI.",
+    "To learn more about the Lambda commands with the .NET Core CLI execute the following command at the command line in the project root directory.",
+    "dotnet lambda help",
+    "All the command line options for the Lambda command can be specified in this file."
+  ],
+  "profile": "AWS Test",
+  "region": "us-east-1",
+  "configuration": "Release",
+  "framework": "netcoreapp3.1",
+  "function-runtime": "dotnetcore3.1",
+  "function-memory-size": 256,
+  "function-timeout": 30,
+  "function-handler": "AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler",
+  "function-name": "Test_AspectConnectEventsForWfmRTListen_Lambda",
+  "function-role": "arn:aws:iam::271773505756:role/Test_AspectConnectEventsForWfmRTListen_LambaRole",
+  "tracing-mode": "PassThrough",
+  "environment-variables": "\"DynamoDbTableName\"=\"Test_AspectConnectEventsForWfmRTListen_Table\";\"LogLevel\"=\"Debug\";\"SqsQueueMessageGroupId\"=\"AspectConnectForWfmRTListen_GroupId\";\"SqsQueueName\"=\"Test_AspectConnectEventsForWfmRTListen_Queue.fifo\";\"SqsQueueOwner\"=\"271773505756\";\"WriteEventsToQueue\"=\"True\";\"SqsQueueUrl\"=\" https://sqs.us-east-1.amazonaws.com/271773505756/Test_AspectConnectEventsForWfmRTListen_Queue.fifo\""
 }
