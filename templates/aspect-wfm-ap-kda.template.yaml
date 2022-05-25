@@ -498,7 +498,7 @@ Resources:
           kda_application_name:
             Ref: KinesisDataAnalyticsApplication
       Handler: update.lambda_handler
-      Runtime: python3.6
+      Runtime: python3.9
       Role:
         Fn::GetAtt: LambdaRole.Arn
   LambdaVersion:
