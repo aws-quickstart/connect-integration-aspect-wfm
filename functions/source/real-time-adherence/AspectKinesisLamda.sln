@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27004.2002
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32929.386
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AspectKinesisLamda", "AspectKinesisLamda\AspectKinesisLamda.csproj", "{B7CF2886-0394-47C4-BCEF-FD4344A3C41B}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AspectKinesisLamda.Tests", "AspectKinesisLamda.Tests\AspectKinesisLamda.Tests.csproj", "{19C30F94-E043-4D56-8882-BAA4D52DEE08}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AspectAwsLambdaLogger", "AspectAwsLambdaLogger\AspectAwsLambdaLogger.csproj", "{85D477AA-910F-47C1-8A71-FF7D96BA29A6}"
 EndProject
@@ -21,10 +19,6 @@ Global
 		{B7CF2886-0394-47C4-BCEF-FD4344A3C41B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B7CF2886-0394-47C4-BCEF-FD4344A3C41B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B7CF2886-0394-47C4-BCEF-FD4344A3C41B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{19C30F94-E043-4D56-8882-BAA4D52DEE08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{19C30F94-E043-4D56-8882-BAA4D52DEE08}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{19C30F94-E043-4D56-8882-BAA4D52DEE08}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{19C30F94-E043-4D56-8882-BAA4D52DEE08}.Release|Any CPU.Build.0 = Release|Any CPU
 		{85D477AA-910F-47C1-8A71-FF7D96BA29A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{85D477AA-910F-47C1-8A71-FF7D96BA29A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{85D477AA-910F-47C1-8A71-FF7D96BA29A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
