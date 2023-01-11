@@ -357,6 +357,7 @@ Resources:
           - dynamodb:GetItem
           - dynamodb:Query
           - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
           Resource:
           - Fn::GetAtt: DynamoDbAgentEvent.Arn
   LambdaReadConfigTablePolicy:
@@ -402,7 +403,7 @@ Resources:
     Properties:
       Handler: >-
         AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler
-      Runtime: dotnetcore3.1
+      Runtime: dotnet6
       Code:
         S3Bucket: !GetAtt CopyZipsTemplate.Outputs.LambdaZipsBucket
         S3Key: !Sub '${QSS3KeyPrefix}functions/packages/real-time-adherence/AspectKinesisLambda.zip'
