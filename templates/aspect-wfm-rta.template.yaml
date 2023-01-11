@@ -357,6 +357,7 @@ Resources:
           - dynamodb:GetItem
           - dynamodb:Query
           - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
           Resource:
           - Fn::GetAtt: DynamoDbAgentEvent.Arn
   LambdaReadConfigTablePolicy:

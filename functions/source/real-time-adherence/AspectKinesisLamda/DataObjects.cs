@@ -42,6 +42,7 @@ namespace AspectKinesisLamda
         public string ARN { get; set; }
         public string Name { get; set; }
         public DateTime StartTimestamp { get; set; }
+        public string Type { get; set; }
     }
 
     public class HierarchyGroup
