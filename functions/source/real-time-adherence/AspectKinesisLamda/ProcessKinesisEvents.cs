@@ -203,13 +203,14 @@ namespace AspectKinesisLamda
                 if (eventRecord != null && MatchFilter(eventRecord))
                 {
                     _logger.Debug("Event matches filter");
-                    ConnectKinesisEventRecord streamRecord = ConvertRecordData(minimizedJSON, eventRecord);
+                    bool isOffline;
+                    ConnectKinesisEventRecord streamRecord = ConvertRecordData(minimizedJSON, eventRecord, out isOffline);
                     // if we were able to parse this event, send to DynamoDB and SQS.
                     if (streamRecord != null)
                     {
                         if (streamRecord.LastEventType != HEARTBEAT_EVENTTYPE)
                         {
-                            await ProcessEventToTable(streamRecord);
+                            await ProcessEventToTable(streamRecord, isOffline);
                         }
                         if (writeEventsToQueue)
                         {
@@ -279,7 +280,7 @@ namespace AspectKinesisLamda
             return o.ToString(0);
         }
 
-        private ConnectKinesisEventRecord ConvertRecordData(string json, EventRecordData eventRecord)
+        private ConnectKinesisEventRecord ConvertRecordData(string json, EventRecordData eventRecord, out bool isOffline)
         {
             _logger.Trace("Beginning ConvertRecordData");
 
@@ -288,9 +289,13 @@ namespace AspectKinesisLamda
             if (String.IsNullOrEmpty(eventRecord?.AgentARN))
             {
                 _logger.Info("recordData does not include AgentARN. Discarding recordData.");
+                isOffline = false;
                 return null;
             }
-            
+
+            // if the agent status type is OFFLINE, this is the Offline state.
+            isOffline = eventRecord.CurrentAgentSnapshot.AgentStatus.Type == "OFFLINE";
+
             ConnectKinesisEventRecord streamRecord = new ConnectKinesisEventRecord()
             {
                 AgentARN = eventRecord.AgentARN,
@@ -309,22 +314,32 @@ namespace AspectKinesisLamda
             return streamRecord;
         }
 
-        private async Task ProcessEventToTable(ConnectKinesisEventRecord streamRecord)
+        private async Task ProcessEventToTable(ConnectKinesisEventRecord streamRecord, bool isOffline)
         {
             _logger.Trace("Beginning ProcessEventsToDynamoTable");
 
-            var dynamoRecord = await _aeDbContext.LoadAsync<ConnectKinesisEventRecord>(streamRecord.AgentARN);
-            if (dynamoRecord == null || streamRecord.LastEventTimeStamp >= dynamoRecord.LastEventTimeStamp)
+            if (isOffline)
             {
-                await _aeDbContext.SaveAsync(streamRecord); 
+                _logger.Debug($"New state is offline, deleting row for {streamRecord.AgentARN}");
+
+                // Note: Delete is idempotent, so there is no need to check whether the record exists.
+                await _aeDbContext.DeleteAsync<ConnectKinesisEventRecord>(streamRecord.AgentARN);
             }
-            else 
+            else
             {
-                _logger.Warn($"Stream record event timestamp {streamRecord.LastEventTimeStamp} is prior to dynamo record event timestamp {dynamoRecord.LastEventTimeStamp}.");
-                _logger.Warn($"Current Stream Record Json {streamRecord.RawAgentEventJSon}");
-                _logger.Warn($"Current Dynamo Record Json {dynamoRecord.RawAgentEventJSon}");              
+                var dynamoRecord = await _aeDbContext.LoadAsync<ConnectKinesisEventRecord>(streamRecord.AgentARN);
+                if (dynamoRecord == null || streamRecord.LastEventTimeStamp >= dynamoRecord.LastEventTimeStamp)
+                {
+                    await _aeDbContext.SaveAsync(streamRecord);
+                }
+                else
+                {
+                    _logger.Warn($"Stream record event timestamp {streamRecord.LastEventTimeStamp} is prior to dynamo record event timestamp {dynamoRecord.LastEventTimeStamp}.");
+                    _logger.Warn($"Current Stream Record Json {streamRecord.RawAgentEventJSon}");
+                    _logger.Warn($"Current Dynamo Record Json {dynamoRecord.RawAgentEventJSon}");
+                }
+                //NOTE: ignores if record old/out-of-order since all info out-of-date; not excepted to be out of order - very rare possiblity
             }
-            //NOTE: ignores if record old/out-of-order since all info out-of-date; not excepted to be out of order - very rare possiblity
 
             _logger.Trace("Ending ProcessEventsToDynamoTable");
         }
