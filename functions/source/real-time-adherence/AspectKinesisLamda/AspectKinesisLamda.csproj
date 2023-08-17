@@ -4,6 +4,12 @@
     <TargetFramework>net6.0</TargetFramework>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
     <DebugType>Full</DebugType>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <AWSProjectType>Lambda</AWSProjectType>
+    <!-- Makes the build directory similar to a publish directory and helps the AWS .NET Lambda Mock Test Tool find project dependencies. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- Generate ready to run images during publishing to improve cold start time. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,14 +25,15 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Amazon.Lambda.Core" Version="2.0.0" />
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.1.0" />
     <PackageReference Include="Amazon.Lambda.KinesisEvents" Version="2.0.0" />
-		<PackageReference Include="Amazon.Lambda.Serialization.Json" Version="2.0.0" />
-		<PackageReference Include="AWSSDK.Core" Version="3.7.0.45" />
-    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.0.44" />
-    <PackageReference Include="AWSSDK.Kinesis" Version="3.7.0.43" />
-    <PackageReference Include="AWSSDK.SQS" Version="3.7.0.44" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="Amazon.Lambda.Serialization.Json" Version="2.1.1" />
+		<PackageReference Include="AWSSDK.Core" Version="3.7.200.15" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.200.16" />
+    <PackageReference Include="AWSSDK.Kinesis" Version="3.7.200.15" />
+    <PackageReference Include="AWSSDK.SQS" Version="3.7.200.16" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="NLog" Version="5.2.3" />
   </ItemGroup>
 
   <ItemGroup>

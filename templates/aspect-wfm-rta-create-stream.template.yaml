@@ -1,11 +1,11 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Aspect AWS Connect RTA CloudFormation template with associated Kinesis stream (qs-1s0oq6h04)
+Description: Alvaria AWS Connect RTA CloudFormation template with associated Kinesis stream (qs-1s0oq6h04)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Aspect WFM Configuration
+          default: Alvaria WFM Configuration
         Parameters:
           - NumSQSQueues
           - LambdaConfigLocation
@@ -217,11 +217,11 @@ Outputs:
       Fn::GetAtt:
         - WorkloadStack
         - Outputs.SqsQueueUrl10
-  LambdaFunctionName:
+  RTALambdaFunctionName:
     Value:
       Fn::GetAtt:
         - WorkloadStack
-        - Outputs.LambdaFunctionName
+        - Outputs.RTALambdaFunctionName
   RTAUserName:
     Value:
       Fn::GetAtt:

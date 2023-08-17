@@ -1,14 +1,16 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Aspect WFM Agent Productivity Report Generator integration with associated Kinesis stream (qs-1s0or52mm)
+Description: Alvaria WFM Agent Productivity Report Generator integration with associated Kinesis stream (qs-1s0or52mm)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
-        default: Aspect WFM Configuration
+        default: Alvaria WFM Configuration
       Parameters:
-      - KdaApplicationName
-      - AspectApDataS3Prefix
+      - FirehoseStreamName
+      - AlvariaApDataS3Prefix
+      - StatusSeparator
+      - SignedOutStatuses
     - Label:
         default: Amazon Connect Configuration
       Parameters:
@@ -22,10 +24,14 @@ Metadata:
       - QSS3BucketRegion
       - QSS3KeyPrefix
     ParameterLabels:
-      KdaApplicationName:
-        default: Aspect Kinesis Application Name
-      AspectApDataS3Prefix:
-        default: Aspect WFM Report Prefix
+      FirehoseStreamName:
+        default: Alvaria Kinesis Firehose Stream Name
+      AlvariaApDataS3Prefix:
+        default: Alvaria WFM Report Prefix
+      StatusSeparator:
+        default: Agent Status Name Separator
+      SignedOutStatuses:
+        default: Signed-Out Agent Status Names
       ConnectS3Bucket:
         default: Amazon Connect Exported Reports Bucket
       ConnectS3Prefix:
@@ -39,37 +45,51 @@ Metadata:
       QSS3KeyPrefix:
         default: Quick Start S3 Key Prefix
 Parameters:
-  KdaApplicationName:
+  FirehoseStreamName:
     Type: String
-    Default: aspect-wfm-ap
+    Default: aspect-wfm-ap-kda-to-s3
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-.]*[0-9a-zA-Z])*$
-    Description: Enter the name of the Kinesis Data Analytics application to create.  This
+    Description: Enter the name of the Kinesis Firehose stream to create.  This
       string can include numbers, lowercase letters, uppercase letters, and hyphens
       (-). It cannot start or end with a hyphen (-).  If you have multiple Amazon
-      Connect instances in your AWS account, you will need to create a Kinesis Data
-      Analytics application for each Amazon Connect instance and give each application
-      a unique name.  The Kinesis Firehose Data Delivery stream that writes agent
-      status reports to S3 is named based on the application name.  The name of the
-      Firehose stream determines the filenames of agent productivity report files
-      written to S3.  By default, WFM Adapter expects the report files to be named
-      based on an application name of "aspect-wfm-ap". If you specify a different
-      application name, be sure to update the WFM Adapter configuration for the corresponding
-      data source to match your application name, in the Firehose Report Mapping data
+      Connect instances in your AWS account, you will need to create a Kinesis Firehose
+      stream for each Amazon Connect instance and give each stream
+      a unique name.  The name of the Kinesis Firehose stream determines the filenames 
+      of agent productivity report files written to S3.  By default, WFM Adapter expects 
+      the report files to be named based on a Kinesis Firehose stream name of "aspect-wfm-ap-kda-to-s3". 
+      If you specify a different stream name, be sure to update the WFM Adapter configuration 
+      for the corresponding data source to match your stream name, in the Firehose Report Mapping data
       source parameter.  Consult the WFM Adapter help for more information.
-  AspectApDataS3Prefix:
+  AlvariaApDataS3Prefix:
     Type: String
     Default: OUTPUT/
-    Description: Enter the prefix for Aspect WFM Agent Productivity reports written
+    Description: Enter the prefix for Alvaria WFM Agent Productivity reports written
       to S3.  You should configure the corresponding WFM Adapter data source to match
       this value, in the Firehose Report Root Path data source parameter.
+  StatusSeparator:
+    Type: String
+    Description: Character used to separate signed-out agents status names. You should configure a separator
+      character that does not appear in any of the individual names.
+    Default: ","
+    MinLength: 1
+    MaxLength: 1
+  SignedOutStatuses:
+    Type: String
+    Description: Enter the list of agent status names for agent statuses that should be
+      treated as signed-out in WFM. For example, an agent status named Break which agents
+      use during a scheduled break would typically be listed here. Multiple signed-out
+      agent status names may be listed. Names should be separated by the configured Agent
+      Status Name Separator. The agent status with a Type of OFFLINE, by default named Offline,
+      will always be treated as signed-out.
   ConnectS3Bucket:
     Type: String
-    Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect instance.
+    Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect
+      instance.
   ConnectS3Prefix:
     Type: String
-    Default: connect/directory/Reports/Aspect/
-    Description: Enter the prefix under which the exported reports read by WFM Adapter will be
-      exported, in the Exported reports bucket of your Amazon Connect instance.
+    Default: connect/directory/Reports/Alvaria/
+    Description: Enter the prefix under which the exported reports read by WFM Adapter
+      will be exported, in the Exported reports bucket of your Amazon Connect instance.
   ConnectS3KmsArn:
     Type: String
     Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
@@ -107,8 +127,9 @@ Rules:
         Fn::Not:
         - Fn::Equals:
           - Ref: ConnectS3Prefix
-          - connect/directory/Reports/Aspect/
-      AssertDescription: Replace directory with the directory name of your Amazon Connect instance.
+          - connect/directory/Reports/Alvaria/
+      AssertDescription: Replace directory with the directory name of your Amazon
+        Connect instance.
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
 Resources:
@@ -130,8 +151,10 @@ Resources:
           - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
             S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
-        KdaApplicationName: !Ref KdaApplicationName
-        AspectApDataS3Prefix: !Ref AspectApDataS3Prefix
+        FirehoseStreamName: !Ref FirehoseStreamName
+        AlvariaApDataS3Prefix: !Ref AlvariaApDataS3Prefix
+        StatusSeparator: !Ref StatusSeparator
+        SignedOutStatuses: !Ref SignedOutStatuses
         ConnectS3Bucket: !Ref ConnectS3Bucket
         ConnectS3Prefix: !Ref ConnectS3Prefix
         ConnectS3KmsArn: !Ref ConnectS3KmsArn
@@ -154,11 +177,16 @@ Outputs:
       Fn::GetAtt:
       - WorkloadStack
       - Outputs.APS3BucketName
-  ApplicationPhysicalResourceId:
+  APUpdateLambdaFunctionName:
     Value:
       Fn::GetAtt:
       - WorkloadStack
-      - Outputs.ApplicationPhysicalResourceId
+      - Outputs.APUpdateLambdaFunctionName
+  APKinesisLambdaFunctionName:
+    Value:
+      Fn::GetAtt:
+      - WorkloadStack
+      - Outputs.APKinesisLambdaFunctionName
   WFMAdapterUserName:
     Value:
       Fn::GetAtt:

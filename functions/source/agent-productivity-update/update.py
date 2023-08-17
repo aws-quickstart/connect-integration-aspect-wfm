@@ -26,35 +26,20 @@ def lambda_handler(event, context):
     log = logging.getLogger()
     log.setLevel(logging.INFO)
 
-    env_kda_app_name = 'kda_application_name'
     env_firehose = 'firehose_stream_name'
-
-    if env_kda_app_name not in os.environ:
-        errorMsg = 'Environment variable ' + env_kda_app_name + ' is required'
-        log.error(errorMsg)
-        return errorMsg
 
     if env_firehose not in os.environ:
       errorMsg = 'Environment variable ' + env_firehose + ' is required'
       log.error(errorMsg)
       return errorMsg
 
-    kdaAppName = os.environ.get(env_kda_app_name)
     firehoseName = os.environ.get(env_firehose)
 
-    kdaClient = boto3.client('kinesisanalytics')
-    response = kdaClient.describe_application(ApplicationName = kdaAppName)
-
-    if response['ApplicationDetail']['ApplicationStatus'] == 'RUNNING':
-        firehoseClient = boto3.client('firehose')
-        response = firehoseClient.put_record(
-          DeliveryStreamName = firehoseName,
-          Record = {
-            'Data': '\n'
-          }
-        )
-        return response
-    else:
-        notRunning = kdaAppName + ' is not running'
-        log.info(notRunning)
-        return notRunning
+    firehoseClient = boto3.client('firehose')
+    response = firehoseClient.put_record(
+      DeliveryStreamName = firehoseName,
+      Record = {
+        'Data': '\n'
+      }
+    )
+    return response
