@@ -1,11 +1,11 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Aspect AWS Connect Real-Time Adherence integration (qs-1s0oq6gud)
+Description: Alvaria AWS Connect Real-Time Adherence integration (qs-1s0oq6gud)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
     - Label:
-        default: Aspect WFM Configuration
+        default: Alvaria WFM Configuration
       Parameters:
         - NumSQSQueues
         - LambdaConfigLocation
@@ -551,7 +551,7 @@ Outputs:
     Value: !If [CreateSqsQ9, !Ref SqsQ9, ""]
   SqsQueueUrl10:
     Value: !If [CreateSqsQ10, !Ref SqsQ10, ""]
-  LambdaFunctionName:
+  RTALambdaFunctionName:
     Value: !Ref LambdaFunction
   RTAUserName:
     Value: !Ref RtaUser
