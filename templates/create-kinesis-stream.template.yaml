@@ -2,11 +2,47 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Helper template to create a Kinesis stream (qs-1s0oq6gum)
 Resources:
+  KinesisKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Kinesis stream encryption KMS key
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow administration of the key
+            Effect: Allow
+            Principal:
+              AWS: 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/Admin'
+            Action:
+              - 'kms:Create*'
+              - 'kms:Describe*'
+              - 'kms:Enable*'
+              - 'kms:List*'
+              - 'kms:Put*'
+              - 'kms:Update*'
+              - 'kms:Revoke*'
+              - 'kms:Disable*'
+              - 'kms:Get*'
+              - 'kms:Delete*'
+              - 'kms:ScheduleKeyDeletion'
+              - 'kms:CancelKeyDeletion'
+            Resource: '*'
   KinesisStream:
    Type: AWS::Kinesis::Stream
    Properties:
     RetentionPeriodHours: 24
     ShardCount: 1
+    StreamEncryption:
+      EncryptionType: KMS
+      KeyId: !GetAtt KinesisKMSKey.KeyId
 Outputs:
   KinesisStreamArn:
     Value: !GetAtt KinesisStream.Arn
